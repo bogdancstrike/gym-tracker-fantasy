@@ -92,6 +92,7 @@ export function GameProvider({ children }) {
   const [quests, setQuests] = useState([]);
   const [difficulty, setDifficulty] = useState('normal');
   const [screen, setScreen] = useState('home');
+  const [selectedExercise, setSelectedExercise] = useState(null);
   const [inventory, setInventory] = useState(INVENTORY);
   const [lastQuestRefresh, setLastQuestRefresh] = useState(null);
   const [customPrograms, setCustomPrograms] = useState([]);
@@ -417,7 +418,7 @@ export function GameProvider({ children }) {
     avatars, activeAvatar, race, activeId, effectiveStats,
     quests, workout, setWorkout,
     difficulty, setDifficulty,
-    screen, setScreen,
+    screen, setScreen, selectedExercise, setSelectedExercise,
     inventory, toggleEquip,
     customPrograms, availablePrograms, saveCustomProgram, deleteCustomProgram, importSaveData,
     bossIntro, setBossIntro,
@@ -431,7 +432,7 @@ export function GameProvider({ children }) {
     completeQuest, gainXp, awardRecordXp, claimWorkout, switchAvatar, createAvatar, deleteAvatar, addMetric, updateActive, patchActive,
   }), [
     avatars, activeAvatar, race, activeId, effectiveStats,
-    quests, workout, difficulty, screen,
+    quests, workout, difficulty, screen, selectedExercise,
     inventory, toggleEquip,
     customPrograms, availablePrograms, saveCustomProgram, deleteCustomProgram, importSaveData,
     bossIntro, bossVictory, questReward, levelUp, switcherOpen, createOpen, switchCine, lootDrop,

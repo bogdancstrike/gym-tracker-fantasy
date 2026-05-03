@@ -1,84 +1,126 @@
 # Ascend
 
-**A local-first gym tracker wrapped in RPG progression.**
+**A local-first gym tracker with RPG progression, real training programs, and visual performance feedback.**
 
-Ascend turns training into a game loop: create a character, pick a real training program, log sets in the gym, earn XP, complete daily quests, unlock loot, and watch your progress build into a long-running fitness profile.
+Ascend is built for lifters who want a practical workout logger that still feels rewarding to use. Create a character, choose a real 3, 4, or 5 day program, log kilograms and reps per set, compare against previous sessions, earn XP, unlock loot, and watch your training history become a long-running fitness profile.
 
-It is built for lifters who want a tracker that feels motivating without losing the practical details that matter: programs, days, exercises, sets, reps, kilograms, bodyweight, workout history, and local persistence.
-
+No backend required. Your training state lives in browser `localStorage`.
 
 ## Why Ascend?
 
-Most gym trackers are useful but dry. Most gamified fitness apps are fun but too shallow for real lifting.
+Most gym trackers are useful but flat. Most gamified fitness apps are fun but too shallow for serious lifting.
 
-Ascend aims for the middle ground:
+Ascend aims for the middle:
 
-- **Real gym tracking:** log kilograms and reps per set.
-- **Program-based training:** choose a 3, 4, or 5 day split such as Full Body, PPL, Upper/Lower, Bro Split, Arnold Split, Athletic Protocol, or Powerbuilding.
-- **Character-based progression:** each character has its own profile, training program, workout state, metrics, history, XP, rank, inventory, and equipment.
-- **Motivation layer:** daily quests, boss workouts, loot drops, ranks, attributes, and cinematic feedback.
-- **Local-first storage:** the app saves state in browser localStorage, making it fast, private, and easy to run without a backend.
+- **Real workout logging:** edit kilograms and reps per set directly in Train.
+- **Program-based training:** choose complete 3, 4, or 5 day splits like PPL, Bro Split, Upper/Lower, Full Body, Arnold Split, Powerbuilding, and custom programs.
+- **Natural progression:** see previous-session loads and get next-set suggestions based on recent performance.
+- **Visual feedback:** radar, volume, adherence, estimated 1RM, exercise detail, and session comparison charts.
+- **RPG motivation:** XP, ranks, records, quests, boss workouts, loot drops, character stats, and themed feedback.
+- **Local-first privacy:** progress is stored locally and can be exported/imported from Admin.
 
 ## Core Features
 
 | Area | What it does |
 | --- | --- |
-| **Train** | Edit kilograms and reps per set, complete workouts, claim XP, and store workout history. |
-| **Programs** | Pick full training plans by frequency: 3, 4, or 5 days per week. |
-| **Characters** | Create multiple lifter profiles with bodyweight, training goal, experience, frequency, program, and starting lift baselines. |
-| **Progression** | Earn XP from sets, workouts, quests, and boss challenges. Rank up from E to S. |
-| **Quests** | Get randomized daily fitness quests across strength, endurance, mobility, recovery, and health. |
-| **Dungeons / Bosses** | Start themed challenge workouts with exercise prescriptions and stronger rewards. |
+| **Champion** | Character overview, XP, attributes, records, metrics, adherence, muscle-group frequency, volume, and strength trend charts. |
+| **Train** | Edit kg/reps per set, see last session values, follow suggested progression, mark sets done, end partial sessions, and compare progress after completion. |
+| **Training Programs** | Choose built-in 3, 4, or 5 day programs, or create custom programs in Admin for reuse across characters. |
+| **Characters** | Create multiple lifter profiles with bodyweight, sex, experience, goal, training frequency, program, and starting lift baselines. |
+| **Exercise Detail** | Open any logged exercise to inspect best set, estimated 1RM, volume, history, and per-session sets. |
+| **Records** | Track personal records by set volume and estimated intensity; record events grant bonus XP. |
+| **Quests** | Complete daily side objectives for strength, endurance, mobility, recovery, and health. |
+| **Dungeons / Bosses** | Run challenge workouts with stronger rewards and cinematic feedback. |
 | **Inventory** | Earn droppable items and equip gear that modifies character attributes. |
-| **Metrics** | Track bodyweight, calories, workout frequency, and training history with charts. |
-| **Admin** | Inspect app data: quests, paths, programs, loot, formulas, and saved localStorage state. |
-| **Themes** | Switch between Solo-Leveling-inspired cyber arcane styling and high-fantasy verdant styling. |
+| **Admin** | Inspect formulas, localStorage state, loot, quests, paths, and training programs with Sankey-style program flow charts. |
+| **Themes** | Switch between a cyber arcane gym theme and a verdant fantasy theme. |
 
-## Product Direction
-
-Ascend is evolving into a full gym tracker with a game layer, not just a themed habit app.
-
-The intended workflow:
+## Gym Tracker Workflow
 
 1. Create a character.
-2. Enter realistic body and strength baselines.
-3. Choose a training split.
-4. Train from the generated workout plan.
-5. Log actual kg and reps.
-6. Review history and progress.
-7. Use XP, records, quests, loot, and bosses as motivation to stay consistent.
+2. Enter realistic bodyweight and starting lift baselines.
+3. Choose one training program for that character.
+4. Train from the scheduled day in the selected program.
+5. Log actual kg and reps per set.
+6. End the workout even if only part of it was completed.
+7. Gain XP only for completed sets and completed workout volume.
+8. Review progress against the last matching session.
+9. Use records, charts, and suggestions to decide what to push next time.
 
 ## Screens
 
 | Screen | Purpose |
 | --- | --- |
-| **Dashboard** | Character overview, rank, XP, attributes, metrics, and training charts. |
-| **Train** | The actual workout logger. This is the core gym-tracker surface. |
-| **Quests** | Daily side objectives for health, mobility, endurance, and strength. |
-| **Dungeons** | Boss-style workouts and challenge sessions. |
-| **Inventory** | Loot, equipment, and RPG stat modifiers. |
-| **Admin** | Data browser for all configurable/static app systems and saved local state. |
+| **Champion** | Main dashboard for character status, records, metrics, adherence, muscle frequency, volume, and estimated 1RM trends. |
+| **Train** | The core workout logger for sets, kg, reps, rest timing, previous-session comparison, progression suggestions, and post-session dotted progress bars. |
+| **Path / Quests** | Daily non-workout objectives that support consistency and general fitness. |
+| **Glades / Gates** | Boss-style challenge sessions. |
+| **Hoard / Vault** | Inventory, loot, and equipped stat modifiers. |
+| **Log** | Workout history with clickable exercises. |
+| **Admin** | Configuration and state browser for formulas, training programs, custom program creation, localStorage backup/restore, quests, loot, and app data. |
+
+## Training Programs
+
+Ascend supports complete programs by weekly frequency:
+
+- **3 days/week:** full-body and compact strength templates.
+- **4 days/week:** PPL variants, upper/lower, and balanced hypertrophy plans.
+- **5 days/week:** bro split, Arnold-style, powerbuilding, and higher-frequency splits.
+
+Each program contains:
+
+- program name and tags
+- day split
+- day focus
+- exercises
+- sets
+- reps
+- lift baseline scaling
+- intensity hints
+
+Custom programs can be created in Admin and then selected when creating future characters.
+
+## Progress Tracking
+
+Ascend tracks both practical gym data and motivational game data:
+
+- per-set kg and reps
+- previous matching workout values
+- workout volume
+- exercise volume
+- estimated 1RM
+- set-volume records
+- intensity records
+- bodyweight
+- calories
+- adherence calendar
+- volume by muscle group
+- muscle group frequency radar
+- session-over-session dotted progress bars
 
 ## Local-First State
 
-Ascend currently stores app state in browser localStorage.
+Ascend stores app state in browser `localStorage`.
 
 Saved state includes:
 
-- characters
-- active character
+- characters and active character
 - character profile details
 - selected training program
 - active workout
+- program day index
 - workout history
+- completed and partial session data
 - metrics
+- records
 - inventory and equipped items
 - quests
 - difficulty
+- custom training programs
 - last daily quest refresh
 - selected theme
 
-This makes the app easy to run locally and private by default. It also means clearing browser storage deletes progress unless export/import support is added.
+Admin includes backup/restore tools for the saved JSON. Clearing browser storage deletes progress unless you export it first.
 
 ## Tech Stack
 
@@ -87,7 +129,7 @@ This makes the app easy to run locally and private by default. It also means cle
 - **Recharts**
 - **Three.js**
 - **Lucide React**
-- **Vanilla CSS with custom theme variables and visual effects**
+- **Vanilla CSS with custom theme variables**
 - **localStorage persistence**
 
 ## Getting Started
@@ -99,7 +141,7 @@ npm install
 npm run dev
 ```
 
-Then open the local Vite URL shown in your terminal.
+Open the local Vite URL shown in your terminal.
 
 ## Build
 
@@ -121,28 +163,24 @@ src/
   characters/   Character visuals and class presentation
   contexts/     Game and theme state
   data/         Programs, quests, dungeons, ranks, loot, workouts
-  screens/      Dashboard, Train, Quests, Dungeons, Inventory, Admin
+  screens/      Champion, Train, Log, Exercise Detail, Admin, and game screens
   shell/        App navigation and layout
   ui/           Shared UI components
   fx/           Backgrounds and visual effects
 ```
 
-## Roadmap
+## Current Status
 
-- [ ] Custom training program builder in Admin
-- [ ] Program day rotation after workout completion
-- [ ] Previous-session comparison inside Train
-- [ ] Personal records for intensity and volume
-- [ ] XP bonus and animation when setting records
-- [ ] Exercise library with muscles, equipment, and substitutions
-- [ ] Rest timer
-- [ ] Import/export localStorage backup
-- [ ] PWA install support
-- [ ] Optional cloud sync
+Ascend is playable and stateful locally. The current foundation supports real workout logging, selectable and custom training programs, character-specific progress, previous-session comparison, partial workout completion, records, XP, charts, Admin inspection, and local backup/restore.
 
-## Status
+The next major upgrades would be:
 
-Ascend is under active development. The current app is playable and stateful locally, with the main foundation for a gym tracker already in place: character profiles, selectable training programs, editable set logging, quests, rewards, metrics, and local persistence.
+- exercise library with substitutions
+- PWA install support
+- better mobile chart layouts
+- optional cloud sync
+- CSV export
+- planned deloads and periodization blocks
 
 ## License
 

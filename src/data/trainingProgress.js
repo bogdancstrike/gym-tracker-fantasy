@@ -17,6 +17,18 @@ export function workoutVolume(workout) {
   return (workout?.exercises || []).reduce((sum, exercise) => sum + exerciseVolume(exercise), 0);
 }
 
+export function muscleGroupForExercise(name = '') {
+  const n = name.toLowerCase();
+  if (/bench|chest|incline|fly|push-up|pushup/.test(n)) return 'Chest';
+  if (/row|pull|lat|back|deadlift|hinge|face pull/.test(n)) return 'Back';
+  if (/squat|leg|lunge|calf|hamstring|quad|front squat/.test(n)) return 'Legs';
+  if (/overhead|shoulder|lateral|rear delt|press/.test(n)) return 'Shoulders';
+  if (/curl|triceps|skull|arms|pressdown/.test(n)) return 'Arms';
+  if (/plank|core|abs|carry/.test(n)) return 'Core';
+  if (/sprint|burpee|jump rope|bike|conditioning/.test(n)) return 'Conditioning';
+  return 'Other';
+}
+
 export function findLastMatchingWorkout(history = [], workout = {}) {
   return [...history]
     .reverse()
@@ -55,6 +67,86 @@ export function buildRecordsFromHistory(history = []) {
     });
   });
   return records;
+}
+
+export function buildExerciseHistory(history = [], exerciseName) {
+  return history
+    .filter(entry => (entry.exercises || []).some(ex => ex.name === exerciseName))
+    .map(entry => {
+      const exercise = (entry.exercises || []).find(ex => ex.name === exerciseName);
+      const bestSet = [...(exercise?.sets || [])].sort((a, b) => estimatedOneRepMax(b) - estimatedOneRepMax(a))[0];
+      return {
+        id: `${entry.id}-${exerciseName}`,
+        date: entry.date,
+        dateFormatted: new Date(entry.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+        workoutName: entry.name,
+        exercise,
+        volume: exerciseVolume(exercise),
+        bestSet,
+        e1rm: estimatedOneRepMax(bestSet),
+      };
+    });
+}
+
+export function buildOneRepMaxTrend(history = [], exerciseNames = ['Bench Press', 'Squat', 'Deadlift', 'Overhead Press']) {
+  const byDate = {};
+  history.forEach(entry => {
+    const label = new Date(entry.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    byDate[label] ||= { name: label };
+    exerciseNames.forEach(exerciseName => {
+      const exercise = (entry.exercises || []).find(ex => ex.name === exerciseName);
+      if (!exercise) return;
+      const bestSet = [...(exercise.sets || [])].sort((a, b) => estimatedOneRepMax(b) - estimatedOneRepMax(a))[0];
+      byDate[label][exerciseName] = Math.max(byDate[label][exerciseName] || 0, estimatedOneRepMax(bestSet));
+    });
+  });
+  return Object.values(byDate).slice(-12);
+}
+
+export function buildMuscleVolumeData(history = [], days = 28) {
+  const since = new Date();
+  since.setDate(since.getDate() - days);
+  const totals = {};
+  history
+    .filter(entry => new Date(entry.date) >= since)
+    .forEach(entry => {
+      (entry.exercises || []).forEach(exercise => {
+        const group = muscleGroupForExercise(exercise.name);
+        totals[group] = (totals[group] || 0) + exerciseVolume(exercise);
+      });
+    });
+  return Object.entries(totals)
+    .map(([name, volume]) => ({ name, volume: Math.round(volume) }))
+    .sort((a, b) => b.volume - a.volume);
+}
+
+export function buildAdherenceCalendar(history = [], days = 35) {
+  const entriesByDate = {};
+  history.forEach(entry => {
+    const key = new Date(entry.date).toDateString();
+    const existing = entriesByDate[key] || { doneSets: 0, totalSets: 0, sessions: 0 };
+    entriesByDate[key] = {
+      doneSets: existing.doneSets + Number(entry.doneSets || 0),
+      totalSets: existing.totalSets + Number(entry.totalSets || 0),
+      sessions: existing.sessions + 1,
+    };
+  });
+
+  return Array.from({ length: days }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (days - 1 - i));
+    const key = d.toDateString();
+    const entry = entriesByDate[key];
+    const ratio = entry?.totalSets ? entry.doneSets / entry.totalSets : 0;
+    return {
+      key,
+      label: d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+      day: d.toLocaleDateString(undefined, { weekday: 'short' }).slice(0, 1),
+      ratio,
+      sessions: entry?.sessions || 0,
+      status: !entry ? 'missed' : ratio >= 1 ? 'complete' : 'partial',
+    };
+  });
 }
 
 export function getSetRecordBonus(records = {}, exerciseName, set) {

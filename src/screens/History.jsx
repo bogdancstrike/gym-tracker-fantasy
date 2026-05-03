@@ -3,8 +3,13 @@ import { Panel } from '../ui/Panel.jsx';
 import { workoutVolume } from '../data/trainingProgress.js';
 
 export function History() {
-  const { activeAvatar } = useGame();
+  const { activeAvatar, setSelectedExercise, setScreen } = useGame();
   const history = [...(activeAvatar.history || [])].reverse();
+
+  const openExercise = (name) => {
+    setSelectedExercise(name);
+    setScreen('exercise');
+  };
 
   return (
     <div className="screen-enter" style={{ padding: '6px 16px 130px' }}>
@@ -46,7 +51,22 @@ export function History() {
                   padding: 12,
                   background: 'rgba(13,15,30,0.38)',
                 }}>
-                  <div className="mythic" style={{ color: 'var(--ink)', fontSize: 15 }}>{exercise.name}</div>
+                  <button
+                    type="button"
+                    onClick={() => openExercise(exercise.name)}
+                    className="mythic"
+                    style={{
+                      border: 0,
+                      background: 'transparent',
+                      color: 'var(--ink)',
+                      fontSize: 15,
+                      padding: 0,
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                    }}
+                  >
+                    {exercise.name}
+                  </button>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
                     {(exercise.sets || []).map((set, index) => (
                       <span key={`${entry.id}-${exercise.name}-${index}`} style={{
@@ -70,4 +90,3 @@ export function History() {
     </div>
   );
 }
-

@@ -7,7 +7,7 @@ import { Icon } from '../ui/Icon.jsx';
 import { FloatingXp } from '../ui/FloatingXp.jsx';
 import { useFloatingXp } from '../hooks/useFloatingXp.js';
 import { formatSetTarget } from '../data/workout.js';
-import { findLastExercise, getProgressionSuggestion, getSetRecordBonus } from '../data/trainingProgress.js';
+import { exerciseVolume, findLastExercise, findLastMatchingWorkout, getProgressionSuggestion, getSetRecordBonus } from '../data/trainingProgress.js';
 
 export function Workout() {
   const { activeAvatar, workout, setWorkout, gainXp, awardRecordXp, claimWorkout, setScreen } = useGame();
@@ -16,6 +16,7 @@ export function Workout() {
 
   const [restSeconds, setRestSeconds] = useState(120);
   const [timerRunning, setTimerRunning] = useState(false);
+  const [completionSummary, setCompletionSummary] = useState(null);
 
   const totalSets = workout.exercises.reduce((s, e) => s + e.sets.length, 0);
   const doneSets  = workout.exercises.reduce((s, e) => s + e.sets.filter(x => x.done).length, 0);
@@ -95,6 +96,38 @@ export function Workout() {
     return `${mins}:${secs}`;
   };
 
+  const buildCompletionSummary = () => {
+    const previousWorkout = findLastMatchingWorkout(activeAvatar.history || [], workout);
+    const rows = workout.exercises.map(exercise => {
+      const previousExercise = previousWorkout?.exercises?.find(item => item.name === exercise.name);
+      const currentVolume = exerciseVolume({
+        ...exercise,
+        sets: (exercise.sets || []).filter(set => set.done),
+      });
+      const previousVolume = previousExercise ? exerciseVolume(previousExercise) : 0;
+      return {
+        name: exercise.name,
+        currentVolume,
+        previousVolume,
+        delta: currentVolume - previousVolume,
+      };
+    });
+    return {
+      workoutName: workout.name,
+      previousDate: previousWorkout?.date,
+      rows,
+      totalCurrent: rows.reduce((sum, row) => sum + row.currentVolume, 0),
+      totalPrevious: rows.reduce((sum, row) => sum + row.previousVolume, 0),
+    };
+  };
+
+  const finishTraining = () => {
+    const summary = buildCompletionSummary();
+    claimWorkout(workout.isBoss, { doneSets, totalSets });
+    setCompletionSummary(summary);
+    setTimerRunning(false);
+  };
+
   return (
     <div className="screen-enter workout-root" style={{ position: 'relative', padding: '6px 16px 130px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0 14px' }}>
@@ -106,7 +139,7 @@ export function Workout() {
           <span className="hud" style={{ fontSize: 11, letterSpacing: '0.16em' }}>EXIT</span>
         </button>
         <div className="hud" style={{ fontSize: 11, color: 'var(--cyan)', letterSpacing: '0.18em' }}>
-          {doneSets}/{totalSets} {fantasy ? 'CYCLES' : 'SETS'}
+          {completionSummary ? 'SESSION ENDED' : `${doneSets}/${totalSets} ${fantasy ? 'CYCLES' : 'SETS'}`}
         </div>
       </div>
 
@@ -115,7 +148,7 @@ export function Workout() {
           TODAY · TRAIN
         </div>
         <div className="mythic glow-text" style={{ fontSize: 22, color: 'var(--ink)', marginTop: 4 }}>
-          {workout.name}
+          {completionSummary?.workoutName || workout.name}
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 12, flexWrap: 'wrap' }}>
           <div className="hud" style={{ color: timerRunning ? 'var(--cyan)' : 'var(--ink-dim)', fontSize: 12 }}>
@@ -130,8 +163,9 @@ export function Workout() {
         </div>
       </Panel>
 
-      <div style={{ display: 'grid', gap: 10, marginTop: 12 }}>
-        {workout.exercises.map(ex => {
+      {!completionSummary && (
+        <div style={{ display: 'grid', gap: 10, marginTop: 12 }}>
+          {workout.exercises.map(ex => {
           const lastExercise = findLastExercise(activeAvatar.history || [], workout, ex.name);
           return (
           <Panel key={ex.id} style={{ padding: 14 }}>
@@ -195,23 +229,96 @@ export function Workout() {
             </div>
           </Panel>
         );})}
-      </div>
+        </div>
+      )}
 
-      <Button 
-        variant="primary" 
-        style={{ width: '100%', marginTop: 14 }} 
-        onClick={() => { 
-          claimWorkout(workout.isBoss, { doneSets, totalSets }); 
-          setScreen('home'); 
-        }}
-        disabled={doneSets === 0}
-      >
-        {doneSets < totalSets
-          ? (fantasy ? 'End Partial Training' : 'End Partial Training')
-          : (fantasy ? 'Bloom · End Training' : 'Complete · Claim XP')}
-      </Button>
+      {completionSummary ? (
+        <CompletionProgress summary={completionSummary} />
+      ) : (
+        <Button
+          variant="primary"
+          style={{ width: '100%', marginTop: 14 }}
+          onClick={finishTraining}
+          disabled={doneSets === 0}
+        >
+          {doneSets < totalSets
+            ? (fantasy ? 'End Partial Training' : 'End Partial Training')
+            : (fantasy ? 'Bloom · End Training' : 'Complete · Claim XP')}
+        </Button>
+      )}
+
+      {completionSummary && (
+        <Button
+          variant="primary"
+          style={{ width: '100%', marginTop: 14 }}
+          onClick={() => setScreen('home')}
+        >
+          Return to Champion
+        </Button>
+      )}
 
       {ticks.map(t => <FloatingXp key={t.id} {...t} />)}
+    </div>
+  );
+}
+
+function CompletionProgress({ summary }) {
+  const maxVolume = Math.max(1, ...summary.rows.flatMap(row => [row.currentVolume, row.previousVolume]));
+  const totalDelta = summary.totalCurrent - summary.totalPrevious;
+
+  return (
+    <Panel glass ticks style={{ padding: 18, marginTop: 14 }}>
+      <div className="hud" style={{ fontSize: 10, letterSpacing: '0.22em', color: 'var(--cyan)' }}>
+        SESSION PROGRESS
+      </div>
+      <div className="mythic" style={{ color: 'var(--ink)', fontSize: 20, marginTop: 6 }}>
+        {summary.workoutName}
+      </div>
+      <div style={{ color: 'var(--ink-dim)', fontSize: 12, marginTop: 6 }}>
+        Current volume {Math.round(summary.totalCurrent)}kg · last comparable {Math.round(summary.totalPrevious)}kg · {totalDelta >= 0 ? '+' : ''}{Math.round(totalDelta)}kg
+        {summary.previousDate ? ` · previous ${new Date(summary.previousDate).toLocaleDateString()}` : ' · no previous session'}
+      </div>
+
+      <div style={{ display: 'grid', gap: 12, marginTop: 16 }}>
+        {summary.rows.map(row => (
+          <div key={row.name} style={{
+            border: '1px solid var(--line)',
+            borderRadius: 10,
+            padding: 12,
+            background: 'rgba(13,15,30,0.42)',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 10 }}>
+              <div className="mythic" style={{ color: 'var(--ink)', fontSize: 14 }}>{row.name}</div>
+              <div className="hud" style={{ color: row.delta >= 0 ? 'var(--cyan)' : 'var(--danger)', fontSize: 10 }}>
+                {row.delta >= 0 ? '+' : ''}{Math.round(row.delta)}kg
+              </div>
+            </div>
+            <DottedBar label="This session" value={row.currentVolume} max={maxVolume} color="var(--cyan)" />
+            <DottedBar label="Last session" value={row.previousVolume} max={maxVolume} color="var(--ink-ghost)" />
+          </div>
+        ))}
+      </div>
+    </Panel>
+  );
+}
+
+function DottedBar({ label, value, max, color }) {
+  const dots = 28;
+  const activeDots = Math.round((Number(value || 0) / max) * dots);
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '96px 1fr 72px', gap: 10, alignItems: 'center', marginTop: 7 }}>
+      <div className="hud" style={{ color: 'var(--ink-dim)', fontSize: 9 }}>{label}</div>
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${dots}, minmax(3px, 1fr))`, gap: 3 }}>
+        {Array.from({ length: dots }, (_, index) => (
+          <span key={index} style={{
+            height: 10,
+            borderRadius: 3,
+            background: index < activeDots ? color : 'rgba(255,255,255,0.06)',
+            boxShadow: index < activeDots ? `0 0 10px ${color}` : 'none',
+          }} />
+        ))}
+      </div>
+      <div className="hud" style={{ color, fontSize: 10, textAlign: 'right' }}>{Math.round(value || 0)}kg</div>
     </div>
   );
 }

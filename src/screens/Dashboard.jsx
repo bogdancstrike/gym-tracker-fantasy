@@ -7,10 +7,28 @@ import { StatBar } from '../ui/StatBar.jsx';
 import { Button } from '../ui/Button.jsx';
 import { Icon } from '../ui/Icon.jsx';
 import { RANK_COLORS } from '../data/ranks.js';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, AreaChart, Area } from 'recharts';
+import { buildAdherenceCalendar, buildMuscleVolumeData, buildOneRepMaxTrend, muscleGroupForExercise } from '../data/trainingProgress.js';
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  AreaChart,
+  Area,
+  RadarChart,
+  Radar,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+} from 'recharts';
 
 export function Dashboard() {
-  const { activeAvatar, race, setScreen, quests, effectiveStats, addMetric, updateActive } = useGame();
+  const { activeAvatar, race, setScreen, quests, effectiveStats, addMetric, updateActive, setSelectedExercise } = useGame();
   const { fantasy, lex } = useTheme();
   const av = activeAvatar;
   const rc = RANK_COLORS[av.rank];
@@ -71,6 +89,26 @@ export function Dashboard() {
     }, {});
     return Object.entries(types).map(([name, value]) => ({ name: name.toUpperCase(), value }));
   }, [history]);
+
+  const oneRepMaxTrend = useMemo(() => buildOneRepMaxTrend(history), [history]);
+  const muscleVolumeData = useMemo(() => buildMuscleVolumeData(history), [history]);
+  const adherenceCalendar = useMemo(() => buildAdherenceCalendar(history), [history]);
+  const muscleFrequencyData = useMemo(() => {
+    const totals = {};
+    history.forEach(entry => {
+      (entry.exercises || []).forEach(exercise => {
+        const group = muscleGroupForExercise(exercise.name);
+        totals[group] = (totals[group] || 0) + 1;
+      });
+    });
+    const base = ['Chest', 'Back', 'Legs', 'Shoulders', 'Arms', 'Core'];
+    return base.map(group => ({ group, sessions: totals[group] || 0 }));
+  }, [history]);
+
+  const openExercise = (name) => {
+    setSelectedExercise(name);
+    setScreen('exercise');
+  };
 
   const handleAddMetric = () => {
     if (!metricValue || isNaN(metricValue)) return;
@@ -175,11 +213,13 @@ export function Dashboard() {
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 10 }}>
             {recordRows.map(([name, record]) => (
-              <div key={name} style={{
+              <button key={name} type="button" onClick={() => openExercise(name)} style={{
                 border: '1px solid var(--line)',
                 borderRadius: 10,
                 padding: 12,
                 background: 'rgba(13,15,30,0.45)',
+                cursor: 'pointer',
+                textAlign: 'left',
               }}>
                 <div className="mythic" style={{ color: 'var(--ink)', fontSize: 14 }}>{name}</div>
                 <div style={{ color: 'var(--cyan)', fontSize: 12, marginTop: 6 }}>
@@ -188,7 +228,7 @@ export function Dashboard() {
                 <div style={{ color: 'var(--ink-dim)', fontSize: 11, marginTop: 4 }}>
                   e1RM {record.bestEstimatedOneRepMax || 0}kg · volume {Math.round(record.bestWorkoutVolume || 0)}kg
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         )}
@@ -228,6 +268,82 @@ export function Dashboard() {
                 <Bar dataKey="value" fill="var(--cyan)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
+          </div>
+        </Panel>
+
+        <Panel glass style={{ padding: 20 }}>
+          <div className="hud" style={{ fontSize: 10, color: 'var(--gold)', marginBottom: 16 }}>MUSCLE GROUP FREQUENCY</div>
+          <div style={{ height: 240, width: '100%', minHeight: 240 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <RadarChart data={muscleFrequencyData}>
+                <PolarGrid stroke="rgba(255,255,255,0.12)" />
+                <PolarAngleAxis dataKey="group" tick={{ fill: 'var(--ink-dim)', fontSize: 10 }} />
+                <PolarRadiusAxis tick={{ fill: 'var(--ink-ghost)', fontSize: 9 }} />
+                <Radar dataKey="sessions" stroke="var(--gold)" fill="rgba(250,204,21,0.24)" fillOpacity={0.7} />
+                <Tooltip contentStyle={{ background: 'rgba(10,11,28,0.95)', border: '1px solid var(--line)', borderRadius: 8, fontSize: 10 }} />
+              </RadarChart>
+            </ResponsiveContainer>
+          </div>
+        </Panel>
+
+        <Panel glass style={{ padding: 20 }}>
+          <div className="hud" style={{ fontSize: 10, color: 'var(--cyan)', marginBottom: 16 }}>ESTIMATED 1RM TREND</div>
+          <div style={{ height: 240, width: '100%', minHeight: 240 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={oneRepMaxTrend}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                <XAxis dataKey="name" stroke="var(--ink-ghost)" fontSize={9} />
+                <YAxis domain={['auto', 'auto']} stroke="var(--ink-ghost)" fontSize={9} />
+                <Tooltip contentStyle={{ background: 'rgba(10,11,28,0.95)', border: '1px solid var(--line)', borderRadius: 8, fontSize: 10 }} />
+                <Line type="monotone" dataKey="Bench Press" stroke="var(--cyan)" strokeWidth={2} dot={{ r: 2 }} />
+                <Line type="monotone" dataKey="Squat" stroke="var(--gold)" strokeWidth={2} dot={{ r: 2 }} />
+                <Line type="monotone" dataKey="Deadlift" stroke="var(--danger)" strokeWidth={2} dot={{ r: 2 }} />
+                <Line type="monotone" dataKey="Overhead Press" stroke="var(--violet)" strokeWidth={2} dot={{ r: 2 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </Panel>
+
+        <Panel glass style={{ padding: 20 }}>
+          <div className="hud" style={{ fontSize: 10, color: 'var(--violet)', marginBottom: 16 }}>VOLUME BY MUSCLE GROUP</div>
+          <div style={{ height: 240, width: '100%', minHeight: 240 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={muscleVolumeData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                <XAxis dataKey="name" stroke="var(--ink-ghost)" fontSize={9} />
+                <YAxis stroke="var(--ink-ghost)" fontSize={9} />
+                <Tooltip contentStyle={{ background: 'rgba(10,11,28,0.95)', border: '1px solid var(--line)', borderRadius: 8, fontSize: 10 }} />
+                <Bar dataKey="volume" fill="var(--violet)" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </Panel>
+
+        <Panel glass style={{ padding: 20 }}>
+          <div className="hud" style={{ fontSize: 10, color: 'var(--cyan)', marginBottom: 16 }}>ADHERENCE CALENDAR</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(24px, 1fr))', gap: 7 }}>
+            {adherenceCalendar.map(day => (
+              <div
+                key={day.key}
+                title={`${day.label}: ${day.sessions} session${day.sessions === 1 ? '' : 's'} · ${Math.round(day.ratio * 100)}% complete`}
+                style={{
+                  aspectRatio: '1 / 1',
+                  borderRadius: 7,
+                  border: '1px solid var(--line)',
+                  background: day.status === 'complete'
+                    ? 'rgba(34,211,238,0.45)'
+                    : day.status === 'partial'
+                      ? 'rgba(250,204,21,0.38)'
+                      : 'rgba(13,15,30,0.55)',
+                  display: 'grid',
+                  placeItems: 'center',
+                  color: day.sessions ? 'var(--ink)' : 'var(--ink-ghost)',
+                  fontSize: 10,
+                }}
+              >
+                {day.day}
+              </div>
+            ))}
           </div>
         </Panel>
       </div>

@@ -14,6 +14,7 @@ import { Dungeons } from './screens/Dungeons.jsx';
 import { Inventory } from './screens/Inventory.jsx';
 import { Admin } from './screens/Admin.jsx';
 import { History } from './screens/History.jsx';
+import { ExerciseDetail } from './screens/ExerciseDetail.jsx';
 import { BossIntro } from './cinematics/BossIntro.jsx';
 import { QuestReward } from './cinematics/QuestReward.jsx';
 import { LevelUpCinematic } from './cinematics/LevelUpCinematic.jsx';
@@ -32,6 +33,7 @@ const SCREEN_MAP = {
   dungeons: Dungeons,
   inventory: Inventory,
   history: History,
+  exercise: ExerciseDetail,
   admin: Admin,
 };
 
@@ -113,7 +115,7 @@ function AppShell() {
 
   const Screen = SCREEN_MAP[screen] || Dashboard;
 
-  const isWidePage = screen === 'home' || screen === 'quests' || screen === 'admin';
+  const isWidePage = screen === 'home' || screen === 'quests' || screen === 'admin' || screen === 'exercise';
 
   if (desktop) {
     document.documentElement.setAttribute('data-layout', 'desktop');

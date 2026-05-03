@@ -86,6 +86,10 @@ export function Admin() {
   const programRows = Object.entries(sourcePrograms).flatMap(([frequency, programs]) =>
     programs.map(program => ({ ...program, frequency }))
   );
+  const groupedPrograms = [3, 4, 5].map(frequency => ({
+    frequency,
+    programs: (sourcePrograms[frequency] || []).map(program => ({ ...program, frequency })),
+  }));
 
   return (
     <div className="screen-enter" style={{ padding: '6px 16px 130px' }}>
@@ -133,21 +137,31 @@ export function Admin() {
 
       <Section title="Training Programs">
         <div style={{ display: 'grid', gap: 10 }}>
-          {programRows.map(program => (
-            <Panel key={program.id} style={{ padding: 14 }}>
-              <div className="mythic" style={{ color: 'var(--ink)', fontSize: 16 }}>{program.name}</div>
-              <div style={{ color: 'var(--ink-dim)', fontSize: 12, marginTop: 4 }}>{program.frequency} days/week · {program.blurb}</div>
-              <div style={chipGrid}>
-                {(program.tags || []).map(tag => <Chip key={`${program.id}-tag-${tag}`}>{tag}</Chip>)}
-                {program.custom && <Chip>custom</Chip>}
+          {groupedPrograms.map(group => (
+            <Panel key={`program-group-${group.frequency}`} style={{ padding: 14 }}>
+              <div className="hud" style={{ color: 'var(--gold)', fontSize: 10, letterSpacing: '0.18em', marginBottom: 12 }}>
+                {group.frequency} DAYS / WEEK
               </div>
-              <div style={{ display: 'grid', gap: 10, marginTop: 12 }}>
-                {(program.days || []).map((trainingDay, dayIndex) => (
-                  <ProgramDay
-                    key={`${program.id}-day-${trainingDay.name || dayIndex}`}
-                    day={trainingDay}
-                    dayIndex={dayIndex}
-                  />
+              <ProgramFlowChart programs={group.programs} frequency={group.frequency} />
+              <div style={{ display: 'grid', gap: 10, marginTop: 14 }}>
+                {group.programs.map(program => (
+                  <Panel key={program.id} style={{ padding: 14 }}>
+                    <div className="mythic" style={{ color: 'var(--ink)', fontSize: 16 }}>{program.name}</div>
+                    <div style={{ color: 'var(--ink-dim)', fontSize: 12, marginTop: 4 }}>{program.frequency} days/week · {program.blurb}</div>
+                    <div style={chipGrid}>
+                      {(program.tags || []).map(tag => <Chip key={`${program.id}-tag-${tag}`}>{tag}</Chip>)}
+                      {program.custom && <Chip>custom</Chip>}
+                    </div>
+                    <div style={{ display: 'grid', gap: 10, marginTop: 12 }}>
+                      {(program.days || []).map((trainingDay, dayIndex) => (
+                        <ProgramDay
+                          key={`${program.id}-day-${trainingDay.name || dayIndex}`}
+                          day={trainingDay}
+                          dayIndex={dayIndex}
+                        />
+                      ))}
+                    </div>
+                  </Panel>
                 ))}
               </div>
             </Panel>
@@ -356,6 +370,97 @@ function ProgramDay({ day, dayIndex }) {
       )}
     </div>
   );
+}
+
+function ProgramFlowChart({ programs, frequency }) {
+  const lanes = programs.flatMap((program, programIndex) => (
+    (program.days || []).map((day, dayIndex) => ({
+      id: `${program.id}-${dayIndex}`,
+      program,
+      programIndex,
+      day,
+      dayIndex,
+      exercises: Array.isArray(day?.exercises) ? day.exercises : [],
+    }))
+  ));
+  const width = 980;
+  const rowHeight = 54;
+  const height = Math.max(180, lanes.length * rowHeight + 62);
+  const programX = 34;
+  const dayX = 340;
+  const exerciseX = 690;
+  const colors = ['var(--cyan)', 'var(--gold)', 'var(--violet)', 'var(--danger)', '#34d399'];
+
+  if (programs.length === 0) {
+    return (
+      <div style={{
+        border: '1px solid var(--line)',
+        borderRadius: 12,
+        padding: 16,
+        color: 'var(--ink-dim)',
+        fontSize: 12,
+        background: 'rgba(13,15,30,0.34)',
+      }}>
+        No {frequency} day programs configured.
+      </div>
+    );
+  }
+
+  return (
+    <div style={{
+      border: '1px solid var(--line)',
+      borderRadius: 12,
+      background: 'rgba(0,0,0,0.22)',
+      overflowX: 'auto',
+      overflowY: 'hidden',
+    }}>
+      <svg viewBox={`0 0 ${width} ${height}`} width="100%" height={height} role="img" aria-label={`${frequency} day training program flow chart`}>
+        <text x={programX} y="24" fill="var(--ink-dim)" fontSize="10" fontFamily="JetBrains Mono, monospace">PROGRAM</text>
+        <text x={dayX} y="24" fill="var(--ink-dim)" fontSize="10" fontFamily="JetBrains Mono, monospace">TRAINING DAY</text>
+        <text x={exerciseX} y="24" fill="var(--ink-dim)" fontSize="10" fontFamily="JetBrains Mono, monospace">EXERCISES</text>
+
+        {lanes.map((lane, laneIndex) => {
+          const y = 50 + laneIndex * rowHeight;
+          const color = colors[lane.programIndex % colors.length];
+          const dayName = typeof lane.day === 'string' ? lane.day : lane.day.name;
+          const exerciseLabel = lane.exercises.length
+            ? lane.exercises.map(exercise => `${exercise.name} (${exercise.sets}x${exercise.reps})`).join(' · ')
+            : 'No exercises';
+          return (
+            <g key={lane.id}>
+              <path
+                d={`M ${programX + 190} ${y + 16} C ${programX + 260} ${y + 16}, ${dayX - 70} ${y + 16}, ${dayX} ${y + 16}`}
+                stroke={color}
+                strokeWidth="8"
+                strokeOpacity="0.28"
+                fill="none"
+                strokeLinecap="round"
+              />
+              <path
+                d={`M ${dayX + 220} ${y + 16} C ${dayX + 285} ${y + 16}, ${exerciseX - 70} ${y + 16}, ${exerciseX} ${y + 16}`}
+                stroke={color}
+                strokeWidth={Math.max(4, Math.min(12, lane.exercises.length * 2))}
+                strokeOpacity="0.24"
+                fill="none"
+                strokeLinecap="round"
+              />
+              <rect x={programX} y={y} width="190" height="32" rx="8" fill="rgba(13,15,30,0.78)" stroke={color} strokeOpacity="0.55" />
+              <rect x={dayX} y={y} width="220" height="32" rx="8" fill="rgba(13,15,30,0.78)" stroke="var(--line)" />
+              <rect x={exerciseX} y={y} width="260" height="32" rx="8" fill="rgba(13,15,30,0.78)" stroke="var(--line)" />
+              <text x={programX + 10} y={y + 20} fill="var(--ink)" fontSize="12" fontFamily="inherit">{truncate(lane.program.name, 24)}</text>
+              <text x={dayX + 10} y={y + 20} fill="var(--ink)" fontSize="12" fontFamily="inherit">Day {lane.dayIndex + 1} · {truncate(dayName, 24)}</text>
+              <text x={exerciseX + 10} y={y + 20} fill="var(--ink-dim)" fontSize="11" fontFamily="inherit">{truncate(exerciseLabel, 42)}</text>
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
+function truncate(value = '', max = 40) {
+  const text = String(value);
+  return text.length > max ? `${text.slice(0, max - 1)}...` : text;
 }
 
 function Chip({ children }) {
