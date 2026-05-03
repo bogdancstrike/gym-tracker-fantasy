@@ -1,4 +1,4 @@
-import { useGame } from '../contexts/GameContext.jsx';
+import { SHOP_REFRESH_COST, useGame } from '../contexts/GameContext.jsx';
 import { useTheme } from '../contexts/ThemeContext.jsx';
 import { Panel } from '../ui/Panel.jsx';
 import { HudHeader } from '../ui/HudHeader.jsx';
@@ -24,8 +24,13 @@ export function Inventory() {
               <div className="hud" style={{ fontSize: 10, color: 'var(--gold)', letterSpacing: '0.2em' }}>COINS</div>
               <div className="mythic" style={{ color: 'var(--ink)', fontSize: 26, marginTop: 4 }}>{coins}</div>
             </div>
-            <Button variant="ghost" style={{ padding: '8px 12px', fontSize: 10 }} onClick={refreshShop}>
-              Refresh Shop
+            <Button
+              variant="ghost"
+              style={{ padding: '8px 12px', fontSize: 10 }}
+              onClick={refreshShop}
+              disabled={coins < SHOP_REFRESH_COST}
+            >
+              Refresh Shop · {SHOP_REFRESH_COST}
             </Button>
           </div>
         </Panel>

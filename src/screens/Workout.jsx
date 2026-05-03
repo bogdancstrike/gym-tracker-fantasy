@@ -8,19 +8,32 @@ import { FloatingXp } from '../ui/FloatingXp.jsx';
 import { useFloatingXp } from '../hooks/useFloatingXp.js';
 import { formatSetTarget } from '../data/workout.js';
 import { exerciseVolume, findLastExercise, findLastMatchingWorkout, getProgressionSuggestion, getSetRecordBonus } from '../data/trainingProgress.js';
+import { EXERCISE_LIBRARY, SET_TYPES } from '../data/exerciseLibrary.js';
 
 export function Workout() {
-  const { activeAvatar, workout, setWorkout, gainXp, awardRecordXp, claimWorkout, setScreen } = useGame();
+  const { activeAvatar, workout, setWorkout, gainXp, awardRecordXp, claimWorkout, setScreen, addExerciseToWorkout } = useGame();
   const { fantasy } = useTheme();
   const { ticks, spawn } = useFloatingXp();
 
   const [restSeconds, setRestSeconds] = useState(120);
   const [timerRunning, setTimerRunning] = useState(false);
   const [completionSummary, setCompletionSummary] = useState(null);
+  const [libraryOpen, setLibraryOpen] = useState(workout.exercises.length === 0);
+  const [exerciseQuery, setExerciseQuery] = useState('');
+  const [sessionStartedAt] = useState(Date.now());
 
   const totalSets = workout.exercises.reduce((s, e) => s + e.sets.length, 0);
   const doneSets  = workout.exercises.reduce((s, e) => s + e.sets.filter(x => x.done).length, 0);
   const records = activeAvatar.records || {};
+  const filteredExercises = EXERCISE_LIBRARY.filter(exercise => {
+    const q = exerciseQuery.trim().toLowerCase();
+    if (!q) return true;
+    return [
+      exercise.name,
+      exercise.equipment,
+      ...(exercise.muscles || []),
+    ].join(' ').toLowerCase().includes(q);
+  }).slice(0, 12);
 
   useEffect(() => {
     if (!timerRunning) return undefined;
@@ -83,7 +96,7 @@ export function Workout() {
       }
     }
     if (nextDone) {
-      gainXp(40);
+      gainXp(SET_TYPES.find(type => type.id === completedSet.type)?.xp || 40);
       if (recordBonus) awardRecordXp(recordBonus.xp);
       setRestSeconds(120);
       setTimerRunning(true);
@@ -118,6 +131,9 @@ export function Workout() {
       rows,
       totalCurrent: rows.reduce((sum, row) => sum + row.currentVolume, 0),
       totalPrevious: rows.reduce((sum, row) => sum + row.previousVolume, 0),
+      durationMinutes: Math.max(1, Math.round((Date.now() - sessionStartedAt) / 60000)),
+      completedSets: doneSets,
+      totalSets,
     };
   };
 
@@ -160,19 +176,68 @@ export function Workout() {
           <Button variant="ghost" style={{ padding: '6px 10px', fontSize: 10 }} onClick={() => { setRestSeconds(120); setTimerRunning(false); }}>
             Reset
           </Button>
+          {!completionSummary && (
+            <Button variant="ghost" style={{ padding: '6px 10px', fontSize: 10 }} onClick={() => setLibraryOpen(value => !value)}>
+              {libraryOpen ? 'Hide Library' : 'Add Exercise'}
+            </Button>
+          )}
         </div>
       </Panel>
 
       {!completionSummary && (
         <div style={{ display: 'grid', gap: 10, marginTop: 12 }}>
+          {libraryOpen && (
+            <ExercisePicker
+              query={exerciseQuery}
+              setQuery={setExerciseQuery}
+              exercises={filteredExercises}
+              onAdd={(name) => {
+                addExerciseToWorkout(name);
+                setExerciseQuery('');
+                setLibraryOpen(false);
+              }}
+            />
+          )}
           {workout.exercises.map(ex => {
           const lastExercise = findLastExercise(activeAvatar.history || [], workout, ex.name);
           return (
           <Panel key={ex.id} style={{ padding: 14 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-              <div className="mythic" style={{ fontSize: 16, color: 'var(--ink)' }}>{ex.name}</div>
-              <div className="hud" style={{ fontSize: 10, color: 'var(--ink-dim)' }}>
-                {ex.sets.filter(s => s.done).length}/{ex.sets.length}
+              <div>
+                <div className="mythic" style={{ fontSize: 16, color: 'var(--ink)' }}>{ex.name}</div>
+                {ex.library && (
+                  <div style={{ color: 'var(--ink-dim)', fontSize: 11, marginTop: 3 }}>
+                    {ex.library.equipment} · {(ex.library.muscles || []).join(', ')}
+                  </div>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <button
+                  type="button"
+                  onClick={() => setWorkout(w => ({
+                    ...w,
+                    exercises: w.exercises.map(item => item.id !== ex.id ? item : {
+                      ...item,
+                      sets: [
+                        ...item.sets,
+                        {
+                          target: formatSetTarget(Number(item.sets.at(-1)?.weight || 0), Number(item.sets.at(-1)?.reps || item.sets.at(-1)?.plannedReps || 8)),
+                          plannedReps: Number(item.sets.at(-1)?.plannedReps || 8),
+                          reps: Number(item.sets.at(-1)?.reps || item.sets.at(-1)?.plannedReps || 8),
+                          weight: Number(item.sets.at(-1)?.weight || 0),
+                          type: 'normal',
+                          done: false,
+                        },
+                      ],
+                    }),
+                  }))}
+                  style={smallIconButton}
+                >
+                  + set
+                </button>
+                <div className="hud" style={{ fontSize: 10, color: 'var(--ink-dim)' }}>
+                  {ex.sets.filter(s => s.done).length}/{ex.sets.length}
+                </div>
               </div>
             </div>
             <div style={{ display: 'grid', gap: 6 }}>
@@ -188,6 +253,10 @@ export function Workout() {
                   transition: 'all 200ms ease',
                 }}>
                   <span className="hud" style={{ fontSize: 10, color: 'var(--ink-dim)', width: 46 }}>SET {i + 1}</span>
+                  <SetTypePicker
+                    value={s.type || 'normal'}
+                    onChange={type => updateSet(ex.id, i, { type })}
+                  />
                   <div style={{ width: 112, minWidth: 92 }}>
                     <div className="hud" style={{ fontSize: 8, letterSpacing: '0.12em', color: 'var(--ink-dim)' }}>LAST</div>
                     <div style={{ fontSize: 11, color: 'var(--ink-dim)', marginTop: 3 }}>
@@ -227,8 +296,20 @@ export function Workout() {
                 </div>
               ))}
             </div>
+            <button
+              type="button"
+              onClick={() => setWorkout(w => ({ ...w, exercises: w.exercises.filter(item => item.id !== ex.id) }))}
+              style={{ ...smallIconButton, marginTop: 10, color: 'var(--danger)' }}
+            >
+              Remove exercise
+            </button>
           </Panel>
         );})}
+          {workout.exercises.length === 0 && !libraryOpen && (
+            <Button variant="primary" style={{ width: '100%', padding: '14px 0' }} onClick={() => setLibraryOpen(true)}>
+              Add First Exercise
+            </Button>
+          )}
         </div>
       )}
 
@@ -276,8 +357,10 @@ function CompletionProgress({ summary }) {
       </div>
       <div style={{ color: 'var(--ink-dim)', fontSize: 12, marginTop: 6 }}>
         Current volume {Math.round(summary.totalCurrent)}kg · last comparable {Math.round(summary.totalPrevious)}kg · {totalDelta >= 0 ? '+' : ''}{Math.round(totalDelta)}kg
-        {summary.previousDate ? ` · previous ${new Date(summary.previousDate).toLocaleDateString()}` : ' · no previous session'}
+        {summary.previousDate ? ` · previous ${new Date(summary.previousDate).toLocaleDateString()}` : ' · no previous session'} · {summary.durationMinutes} min
       </div>
+
+      <ShareCard summary={summary} />
 
       <div style={{ display: 'grid', gap: 12, marginTop: 16 }}>
         {summary.rows.map(row => (
@@ -299,6 +382,123 @@ function CompletionProgress({ summary }) {
         ))}
       </div>
     </Panel>
+  );
+}
+
+function ExercisePicker({ query, setQuery, exercises, onAdd }) {
+  return (
+    <Panel glass ticks style={{ padding: 14 }}>
+      <div className="hud" style={{ color: 'var(--cyan)', fontSize: 10, letterSpacing: '0.2em', marginBottom: 10 }}>
+        EXERCISE LIBRARY
+      </div>
+      <input
+        value={query}
+        onChange={e => setQuery(e.target.value)}
+        placeholder="Search exercise, muscle, equipment..."
+        autoFocus
+        style={{
+          width: '100%',
+          boxSizing: 'border-box',
+          padding: '12px 13px',
+          borderRadius: 10,
+          border: '1px solid var(--line)',
+          background: 'rgba(8,8,18,0.62)',
+          color: 'var(--ink)',
+          outline: 'none',
+          marginBottom: 10,
+        }}
+      />
+      <div style={{ display: 'grid', gap: 8 }}>
+        {exercises.map(exercise => (
+          <button
+            key={exercise.name}
+            type="button"
+            onClick={() => onAdd(exercise.name)}
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              gap: 12,
+              alignItems: 'center',
+              border: '1px solid var(--line)',
+              borderRadius: 10,
+              background: 'rgba(13,15,30,0.45)',
+              color: 'var(--ink)',
+              padding: '10px 12px',
+              cursor: 'pointer',
+              textAlign: 'left',
+            }}
+          >
+            <span>
+              <span className="mythic" style={{ display: 'block', fontSize: 14 }}>{exercise.name}</span>
+              <span style={{ display: 'block', color: 'var(--ink-dim)', fontSize: 11, marginTop: 3 }}>
+                {exercise.equipment} · {exercise.muscles.join(', ')}
+              </span>
+            </span>
+            <span className="hud" style={{ color: 'var(--cyan)', fontSize: 10 }}>ADD</span>
+          </button>
+        ))}
+      </div>
+    </Panel>
+  );
+}
+
+function SetTypePicker({ value, onChange }) {
+  return (
+    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', width: 104 }}>
+      {SET_TYPES.map(type => (
+        <button
+          key={type.id}
+          type="button"
+          title={type.label}
+          onClick={() => onChange(type.id)}
+          style={{
+            width: 22,
+            height: 22,
+            borderRadius: 6,
+            border: `1px solid ${value === type.id ? 'var(--cyan)' : 'var(--line)'}`,
+            background: value === type.id ? 'rgba(34,211,238,0.16)' : 'rgba(0,0,0,0.2)',
+            color: value === type.id ? 'var(--cyan)' : 'var(--ink-dim)',
+            fontSize: 10,
+            cursor: 'pointer',
+          }}
+        >
+          {type.short}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function ShareCard({ summary }) {
+  const text = [
+    `${summary.workoutName}`,
+    `${summary.completedSets}/${summary.totalSets} sets · ${summary.durationMinutes} min`,
+    `Volume: ${Math.round(summary.totalCurrent)}kg`,
+    ...summary.rows.map(row => `${row.name}: ${Math.round(row.currentVolume)}kg (${row.delta >= 0 ? '+' : ''}${Math.round(row.delta)}kg)`),
+  ].join('\n');
+
+  const share = async () => {
+    if (navigator.share) {
+      await navigator.share({ title: summary.workoutName, text });
+      return;
+    }
+    await navigator.clipboard?.writeText(text);
+  };
+
+  return (
+    <div style={{
+      border: '1px solid var(--line)',
+      borderRadius: 12,
+      background: 'linear-gradient(135deg, rgba(34,211,238,0.14), rgba(168,85,247,0.12))',
+      padding: 14,
+      marginTop: 14,
+    }}>
+      <div className="hud" style={{ color: 'var(--gold)', fontSize: 10, letterSpacing: '0.18em' }}>SHARE CARD</div>
+      <div style={{ color: 'var(--ink)', fontSize: 13, whiteSpace: 'pre-line', lineHeight: 1.55, marginTop: 8 }}>{text}</div>
+      <Button variant="ghost" style={{ marginTop: 12, width: '100%' }} onClick={share}>
+        Share / Copy
+      </Button>
+    </div>
   );
 }
 
@@ -350,3 +550,13 @@ function SetInput({ label, value, onChange, disabled = false }) {
     </label>
   );
 }
+
+const smallIconButton = {
+  border: '1px solid var(--line)',
+  borderRadius: 8,
+  background: 'rgba(13,15,30,0.45)',
+  color: 'var(--ink-dim)',
+  padding: '6px 8px',
+  cursor: 'pointer',
+  fontSize: 11,
+};

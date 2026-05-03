@@ -6,10 +6,12 @@ import { PROGRAMS } from '../data/programs.js';
 import { RANKS, DIFFICULTY_MULTIPLIER, getRankForLevel } from '../data/ranks.js';
 import { INVENTORY, LOOT_POOL, itemBuyValue, itemSalvageValue } from '../data/inventory.js';
 import { buildRecordsFromHistory } from '../data/trainingProgress.js';
+import { createExerciseFromLibrary, EXERCISE_LIBRARY } from '../data/exerciseLibrary.js';
 
 const GameContext = createContext(null);
 
 export const STORAGE_KEY = 'ascend_hunters_forge_v1';
+export const SHOP_REFRESH_COST = 200;
 
 function mergePrograms(customPrograms = []) {
   const merged = {
@@ -186,6 +188,30 @@ export function GameProvider({ children }) {
     }));
   }, [activeId]);
 
+  const startEmptyWorkout = useCallback(() => {
+    const emptyWorkout = {
+      id: `empty-${Date.now()}`,
+      name: 'Empty Workout',
+      type: 'empty',
+      isBoss: false,
+      exercises: [],
+    };
+    setAvatars(as => as.map(a => a.id === activeId ? { ...a, workout: emptyWorkout } : a));
+    setScreen('workout');
+  }, [activeId]);
+
+  const addExerciseToWorkout = useCallback((exerciseName) => {
+    const template = EXERCISE_LIBRARY.find(exercise => exercise.name === exerciseName);
+    if (!template) return;
+    setWorkout(workoutValue => ({
+      ...workoutValue,
+      exercises: [
+        ...(workoutValue.exercises || []),
+        createExerciseFromLibrary(template),
+      ],
+    }));
+  }, [setWorkout]);
+
   const addMetric = useCallback((type, value) => {
     updateActive({
       metrics: [
@@ -271,8 +297,10 @@ export function GameProvider({ children }) {
   }, [coins, shopItems]);
 
   const refreshShop = useCallback(() => {
+    if (coins < SHOP_REFRESH_COST) return;
+    setCoins(current => current - SHOP_REFRESH_COST);
     setShopItems(createShopItems());
-  }, []);
+  }, [coins]);
 
   const completeQuest = useCallback((id) => {
     setQuests(qs => {
@@ -322,6 +350,7 @@ export function GameProvider({ children }) {
     const completionRatio = totalSets > 0 ? doneSets / totalSets : 1;
     const amount = isBoss ? Math.round(450 * completionRatio) : Math.round(150 * completionRatio);
     const today = new Date().toISOString();
+    const isEmptyWorkout = workout.type === 'empty';
     const programInfo = getWorkoutProgram(activeAvatar, workout, customPrograms);
     const program = programInfo.program;
     const currentDayIndex = Number.isFinite(Number(workout.dayIndex))
@@ -334,7 +363,7 @@ export function GameProvider({ children }) {
     
     const workoutEntry = {
       id: Date.now(),
-      type: isBoss ? 'boss' : 'workout',
+      type: isBoss ? 'boss' : isEmptyWorkout ? 'empty' : 'workout',
       date: today,
       name: workout.name,
       program: canonicalProgram,
@@ -349,7 +378,7 @@ export function GameProvider({ children }) {
       exercises: workout.exercises,
     };
     const history = [...(activeAvatar.history || []), workoutEntry];
-    const nextWorkout = isBoss ? workout : createWorkoutFromProfile(activeAvatar.profile, program, nextDayIndex);
+    const nextWorkout = isBoss || isEmptyWorkout ? workout : createWorkoutFromProfile(activeAvatar.profile, program, nextDayIndex);
     const records = buildRecordsFromHistory(history);
 
     if (isBoss) {
@@ -367,7 +396,7 @@ export function GameProvider({ children }) {
         history,
         records,
         program: canonicalProgram,
-        programDayIndex: nextDayIndex,
+        programDayIndex: isEmptyWorkout ? activeAvatar.programDayIndex : nextDayIndex,
         workout: nextWorkout,
       });
     }
@@ -463,7 +492,7 @@ export function GameProvider({ children }) {
 
   const value = useMemo(() => ({
     avatars, activeAvatar, race, activeId, effectiveStats,
-    quests, workout, setWorkout,
+    quests, workout, setWorkout, startEmptyWorkout, addExerciseToWorkout,
     difficulty, setDifficulty,
     screen, setScreen, selectedExercise, setSelectedExercise,
     inventory, toggleEquip, coins, shopItems, salvageItem, buyShopItem, refreshShop,
@@ -479,7 +508,7 @@ export function GameProvider({ children }) {
     completeQuest, gainXp, awardRecordXp, claimWorkout, switchAvatar, createAvatar, deleteAvatar, addMetric, updateActive, patchActive,
   }), [
     avatars, activeAvatar, race, activeId, effectiveStats,
-    quests, workout, difficulty, screen, selectedExercise,
+    quests, workout, startEmptyWorkout, addExerciseToWorkout, difficulty, screen, selectedExercise,
     inventory, toggleEquip, coins, shopItems, salvageItem, buyShopItem, refreshShop,
     customPrograms, availablePrograms, saveCustomProgram, deleteCustomProgram, importSaveData,
     bossIntro, bossVictory, questReward, levelUp, switcherOpen, createOpen, switchCine, lootDrop,

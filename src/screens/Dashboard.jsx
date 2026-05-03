@@ -28,7 +28,7 @@ import {
 } from 'recharts';
 
 export function Dashboard() {
-  const { activeAvatar, race, setScreen, quests, effectiveStats, addMetric, updateActive, setSelectedExercise } = useGame();
+  const { activeAvatar, race, setScreen, quests, effectiveStats, addMetric, updateActive, setSelectedExercise, startEmptyWorkout } = useGame();
   const { fantasy, lex } = useTheme();
   const av = activeAvatar;
   const rc = RANK_COLORS[av.rank];
@@ -47,20 +47,6 @@ export function Dashboard() {
     ...m,
     dateFormatted: new Date(m.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
   }));
-  const liftMetricTypes = [
-    { type: 'bench', label: 'Bench / Chest Press', color: 'var(--cyan)' },
-    { type: 'squat', label: 'Squat', color: 'var(--gold)' },
-    { type: 'deadlift', label: 'Deadlift', color: 'var(--danger)' },
-    { type: 'overhead', label: 'Overhead Press', color: 'var(--violet)' },
-  ];
-  const liftMetricData = liftMetricTypes.map(metric => ({
-    ...metric,
-    data: metrics.filter(m => m.type === metric.type).map(m => ({
-      ...m,
-      dateFormatted: new Date(m.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-    }))
-  }));
-
   // --- History & Stats Data ---
   const history = av.history || [];
   const recordRows = Object.entries(av.records || {}).slice(0, 6);
@@ -177,6 +163,17 @@ export function Dashboard() {
         <StatTile label="Total Workouts" value={history.length} icon={Icon.barbell} color="var(--violet)" />
       </div>
 
+      <Panel glass style={{ padding: 14, marginTop: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
+          <Button variant="primary" style={{ padding: '12px 14px' }} onClick={() => setScreen('workout')}>
+            Continue Program
+          </Button>
+          <Button variant="ghost" style={{ padding: '12px 14px' }} onClick={startEmptyWorkout}>
+            Start Empty Workout
+          </Button>
+        </div>
+      </Panel>
+
       {/* Attribute Panel (Full Width) */}
       <Panel glass style={{ padding: 24, marginTop: 16 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
@@ -256,22 +253,6 @@ export function Dashboard() {
           )}
         </ChartBox>
 
-        <ChartBox id="activity-distribution" title="ACTIVITY DISTRIBUTION" color="var(--cyan)" height={180} maximizedChart={maximizedChart} setMaximizedChart={setMaximizedChart}>
-          {chartHeight => (
-          <div style={{ height: chartHeight, width: '100%', minHeight: chartHeight }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={frequencyData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                <XAxis dataKey="name" stroke="var(--ink-ghost)" fontSize={9} tickMargin={10} />
-                <YAxis fontSize={9} stroke="var(--ink-ghost)" />
-                <Tooltip contentStyle={{ background: 'rgba(10,11,28,0.95)', border: '1px solid var(--line)', borderRadius: 8, fontSize: 10 }} />
-                <Bar dataKey="value" fill="var(--cyan)" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-          )}
-        </ChartBox>
-
         <ChartBox id="muscle-frequency" title="MUSCLE GROUP FREQUENCY" color="var(--gold)" height={240} maximizedChart={maximizedChart} setMaximizedChart={setMaximizedChart}>
           {chartHeight => (
           <div style={{ height: chartHeight, width: '100%', minHeight: chartHeight }}>
@@ -292,16 +273,16 @@ export function Dashboard() {
           {chartHeight => (
           <div style={{ height: chartHeight, width: '100%', minHeight: chartHeight }}>
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={oneRepMaxTrend}>
+              <BarChart data={oneRepMaxTrend}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
                 <XAxis dataKey="name" stroke="var(--ink-ghost)" fontSize={9} />
                 <YAxis domain={['auto', 'auto']} stroke="var(--ink-ghost)" fontSize={9} />
                 <Tooltip contentStyle={{ background: 'rgba(10,11,28,0.95)', border: '1px solid var(--line)', borderRadius: 8, fontSize: 10 }} />
-                <Line type="monotone" dataKey="Bench Press" stroke="var(--cyan)" strokeWidth={2} dot={{ r: 2 }} />
-                <Line type="monotone" dataKey="Squat" stroke="var(--gold)" strokeWidth={2} dot={{ r: 2 }} />
-                <Line type="monotone" dataKey="Deadlift" stroke="var(--danger)" strokeWidth={2} dot={{ r: 2 }} />
-                <Line type="monotone" dataKey="Overhead Press" stroke="var(--violet)" strokeWidth={2} dot={{ r: 2 }} />
-              </LineChart>
+                <Bar dataKey="Bench Press" fill="var(--cyan)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="Squat" fill="var(--gold)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="Deadlift" fill="var(--danger)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="Overhead Press" fill="var(--violet)" radius={[4, 4, 0, 0]} />
+              </BarChart>
             </ResponsiveContainer>
           </div>
           )}
@@ -425,24 +406,6 @@ export function Dashboard() {
             </div>
             )}
           </ChartBox>
-
-          {liftMetricData.map(metric => (
-            <ChartBox key={metric.type} id={`metric-${metric.type}`} title={`${metric.label} (KG)`} color={metric.color} height={200} maximizedChart={maximizedChart} setMaximizedChart={setMaximizedChart} compact>
-              {chartHeight => (
-              <div style={{ height: chartHeight, minHeight: chartHeight }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={metric.data}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                    <XAxis dataKey="dateFormatted" stroke="var(--ink-ghost)" fontSize={9} />
-                    <YAxis domain={['auto', 'auto']} stroke="var(--ink-ghost)" fontSize={9} />
-                    <Tooltip contentStyle={{ background: 'rgba(10,11,28,0.95)', border: '1px solid var(--line)', fontSize: 10 }} />
-                    <Line type="monotone" dataKey="value" stroke={metric.color} strokeWidth={2} dot={{ r: 3 }} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-              )}
-            </ChartBox>
-          ))}
         </div>
       </Panel>
     </div>

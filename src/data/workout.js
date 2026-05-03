@@ -50,6 +50,7 @@ export function createSets(count, { weight = 0, reps = 8, target } = {}) {
     plannedReps: reps,
     reps: reps,
     weight,
+    type: 'normal',
     done: false,
   }));
 }

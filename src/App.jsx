@@ -19,6 +19,7 @@ import { BossIntro } from './cinematics/BossIntro.jsx';
 import { QuestReward } from './cinematics/QuestReward.jsx';
 import { LevelUpCinematic } from './cinematics/LevelUpCinematic.jsx';
 import { SwitchCinematic } from './cinematics/SwitchCinematic.jsx';
+import { LootDropToast } from './cinematics/LootDropToast.jsx';
 import { AvatarSwitcher } from './avatar/AvatarSwitcher.jsx';
 import { AvatarCreate } from './avatar/AvatarCreate.jsx';
 import { useBreakpoint } from './hooks/useBreakpoint.js';
@@ -46,6 +47,7 @@ function Overlays({ onWorkout }) {
     switcherOpen, setSwitcherOpen,
     createOpen, setCreateOpen,
     switchCine, setSwitchCine,
+    lootDrop, setLootDrop,
     createAvatar, setScreen,
     setWorkout,
   } = useGame();
@@ -100,6 +102,9 @@ function Overlays({ onWorkout }) {
           toAvatar={switchCine.to}
           onDone={() => setSwitchCine(null)}
         />
+      )}
+      {lootDrop && (
+        <LootDropToast item={lootDrop} onDismiss={() => setLootDrop(null)} />
       )}
     </>
   );
