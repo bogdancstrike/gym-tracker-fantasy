@@ -131,8 +131,10 @@ function dayTypeForName(dayName = '') {
   return 'full';
 }
 
-export function createWorkoutFromProfile(profile = {}, program) {
-  const firstDay = program?.days?.[0] || { name: 'Full Body', exercises: SPLIT_EXERCISES.full };
+export function createWorkoutFromProfile(profile = {}, program, dayIndex = 0) {
+  const days = program?.days || [];
+  const safeDayIndex = days.length > 0 ? dayIndex % days.length : 0;
+  const firstDay = days[safeDayIndex] || { name: 'Full Body', exercises: SPLIT_EXERCISES.full };
   const dayName = typeof firstDay === 'string' ? firstDay : firstDay.name;
   const dayType = dayTypeForName(dayName);
   const templates = Array.isArray(firstDay.exercises) && firstDay.exercises.length > 0
@@ -142,6 +144,7 @@ export function createWorkoutFromProfile(profile = {}, program) {
     id: `wk-${Date.now()}`,
     name: `${program?.name || 'Training'} · ${dayName}`,
     programId: program?.id,
+    dayIndex: safeDayIndex,
     dayName,
     isBoss: false,
     exercises: templates.map((ex, index) => {

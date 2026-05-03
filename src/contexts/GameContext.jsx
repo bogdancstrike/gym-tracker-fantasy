@@ -5,6 +5,7 @@ import { LIVE_WORKOUT, createWorkoutFromProfile } from '../data/workout.js';
 import { PROGRAMS } from '../data/programs.js';
 import { RANKS, DIFFICULTY_MULTIPLIER, getRankForLevel } from '../data/ranks.js';
 import { INVENTORY, LOOT_POOL } from '../data/inventory.js';
+import { buildRecordsFromHistory } from '../data/trainingProgress.js';
 
 const GameContext = createContext(null);
 
@@ -53,6 +54,8 @@ function normalizeAvatar(avatar, legacyWorkout, customPrograms = []) {
     equippedIds: avatar.equippedIds || [],
     history: avatar.history || [],
     metrics: avatar.metrics || [],
+    records: avatar.records || buildRecordsFromHistory(avatar.history || []),
+    programDayIndex: avatar.programDayIndex || 0,
     workout: avatar.workout || legacyWorkout || createWorkoutFromProfile(profile, program),
   };
 }
@@ -134,6 +137,10 @@ export function GameProvider({ children }) {
 
   const updateActive = useCallback((patch) => {
     setAvatars(as => as.map(a => a.id === activeId ? { ...a, ...patch } : a));
+  }, [activeId]);
+
+  const patchActive = useCallback((updater) => {
+    setAvatars(as => as.map(a => a.id === activeId ? updater(a) : a));
   }, [activeId]);
 
   const setWorkout = useCallback((nextWorkout) => {
@@ -240,9 +247,17 @@ export function GameProvider({ children }) {
     }
   }, [activeAvatar, updateActive, dropLoot]);
 
+  const awardRecordXp = useCallback((amount) => {
+    gainXp(amount);
+  }, [gainXp]);
+
   const claimWorkout = useCallback((isBoss = false) => {
     const amount = isBoss ? 450 : 150;
     const today = new Date().toISOString();
+    const program = getAvatarProgram(activeAvatar, customPrograms);
+    const nextDayIndex = isBoss || !program?.days?.length
+      ? activeAvatar.programDayIndex || 0
+      : ((activeAvatar.programDayIndex || workout.dayIndex || 0) + 1) % program.days.length;
     
     const workoutEntry = {
       id: Date.now(),
@@ -250,21 +265,31 @@ export function GameProvider({ children }) {
       date: today,
       name: workout.name,
       program: activeAvatar.program,
+      dayName: workout.dayName,
+      dayIndex: workout.dayIndex,
+      volume: workout.exercises?.reduce((sum, exercise) =>
+        sum + (exercise.sets || []).reduce((setSum, set) => setSum + Number(set.weight || 0) * Number(set.reps || 0), 0), 0),
       exercises: workout.exercises,
     };
     const history = [...(activeAvatar.history || []), workoutEntry];
+    const nextWorkout = isBoss ? workout : createWorkoutFromProfile(activeAvatar.profile, program, nextDayIndex);
+    const records = buildRecordsFromHistory(history);
 
     if (isBoss) {
       setBossVictory({ xp: amount, time: Math.floor(Math.random() * 20) + 15 });
       updateActive({ 
         bossWins: (activeAvatar.bossWins || 0) + 1,
         totalXpToday: activeAvatar.totalXpToday + amount,
-        history
+        history,
+        records,
       });
     } else {
       updateActive({ 
         totalXpToday: activeAvatar.totalXpToday + amount,
-        history
+        history,
+        records,
+        programDayIndex: nextDayIndex,
+        workout: nextWorkout,
       });
     }
     gainXp(amount);
@@ -272,7 +297,7 @@ export function GameProvider({ children }) {
       const item = dropLoot('workout', isBoss);
       if (item) setLootDrop(item);
     }
-  }, [gainXp, dropLoot, workout.name, activeAvatar.history, activeAvatar.bossWins, updateActive]);
+  }, [gainXp, dropLoot, workout, activeAvatar, customPrograms, updateActive]);
 
   const switchAvatar = useCallback((id) => {
     if (id === activeId) { setSwitcherOpen(false); return; }
@@ -292,6 +317,8 @@ export function GameProvider({ children }) {
       rank: getRankForLevel(newAv.level),
       history: [],
       metrics: [],
+      records: {},
+      programDayIndex: 0,
       workout,
     };
     setAvatars(as => [...as, avWithEquip]);
@@ -333,13 +360,24 @@ export function GameProvider({ children }) {
     });
   }, [activeId]);
 
+  const importSaveData = useCallback((data) => {
+    const savedCustomPrograms = data.customPrograms || [];
+    setCustomPrograms(savedCustomPrograms);
+    setAvatars((data.avatars || INITIAL_AVATARS).map(av => normalizeAvatar(av, data.workout, savedCustomPrograms)));
+    setActiveId(data.activeId || data.avatars?.[0]?.id || INITIAL_AVATARS[0].id);
+    setQuests(data.quests || []);
+    setDifficulty(data.difficulty || 'normal');
+    setInventory(data.inventory || INVENTORY);
+    setLastQuestRefresh(data.lastQuestRefresh || null);
+  }, []);
+
   const value = useMemo(() => ({
     avatars, activeAvatar, race, activeId, effectiveStats,
     quests, workout, setWorkout,
     difficulty, setDifficulty,
     screen, setScreen,
     inventory, toggleEquip,
-    customPrograms, availablePrograms, saveCustomProgram, deleteCustomProgram,
+    customPrograms, availablePrograms, saveCustomProgram, deleteCustomProgram, importSaveData,
     bossIntro, setBossIntro,
     bossVictory, setBossVictory,
     questReward, setQuestReward,
@@ -348,14 +386,14 @@ export function GameProvider({ children }) {
     createOpen, setCreateOpen,
     switchCine, setSwitchCine,
     lootDrop, setLootDrop,
-    completeQuest, gainXp, claimWorkout, switchAvatar, createAvatar, deleteAvatar, addMetric, updateActive,
+    completeQuest, gainXp, awardRecordXp, claimWorkout, switchAvatar, createAvatar, deleteAvatar, addMetric, updateActive, patchActive,
   }), [
     avatars, activeAvatar, race, activeId, effectiveStats,
     quests, workout, difficulty, screen,
     inventory, toggleEquip,
-    customPrograms, availablePrograms, saveCustomProgram, deleteCustomProgram,
+    customPrograms, availablePrograms, saveCustomProgram, deleteCustomProgram, importSaveData,
     bossIntro, bossVictory, questReward, levelUp, switcherOpen, createOpen, switchCine, lootDrop,
-    completeQuest, gainXp, claimWorkout, switchAvatar, createAvatar, deleteAvatar, addMetric, updateActive,
+    completeQuest, gainXp, awardRecordXp, claimWorkout, switchAvatar, createAvatar, deleteAvatar, addMetric, updateActive, patchActive,
   ]);
 
   if (!isLoaded) return null; // Prevent hydration mismatch or flash of empty state

@@ -31,6 +31,7 @@ export function Dashboard() {
 
   // --- History & Stats Data ---
   const history = av.history || [];
+  const recordRows = Object.entries(av.records || {}).slice(0, 6);
   
   // Workouts in last 30 days
   const last30Days = useMemo(() => {
@@ -139,6 +140,45 @@ export function Dashboard() {
             <StatBar key={k} label={k} value={v} max={120} color={race?.color || 'var(--cyan)'} />
           ))}
         </div>
+      </Panel>
+
+      <Panel glass style={{ padding: 20, marginTop: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+          <div className="hud" style={{ fontSize: 11, letterSpacing: '0.22em', color: 'var(--cyan)' }}>PERSONAL RECORDS</div>
+          <button onClick={() => setScreen('history')} style={{
+            border: '1px solid var(--line)',
+            background: 'rgba(13,15,30,0.45)',
+            color: 'var(--ink-dim)',
+            borderRadius: 8,
+            padding: '7px 10px',
+            cursor: 'pointer',
+            fontSize: 11,
+          }}>
+            View log
+          </button>
+        </div>
+        {recordRows.length === 0 ? (
+          <div style={{ color: 'var(--ink-dim)', fontSize: 13 }}>Complete workouts to establish records.</div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 10 }}>
+            {recordRows.map(([name, record]) => (
+              <div key={name} style={{
+                border: '1px solid var(--line)',
+                borderRadius: 10,
+                padding: 12,
+                background: 'rgba(13,15,30,0.45)',
+              }}>
+                <div className="mythic" style={{ color: 'var(--ink)', fontSize: 14 }}>{name}</div>
+                <div style={{ color: 'var(--cyan)', fontSize: 12, marginTop: 6 }}>
+                  Best set: {record.bestSet?.weight || 0}kg x {record.bestSet?.reps || 0}
+                </div>
+                <div style={{ color: 'var(--ink-dim)', fontSize: 11, marginTop: 4 }}>
+                  e1RM {record.bestEstimatedOneRepMax || 0}kg · volume {Math.round(record.bestWorkoutVolume || 0)}kg
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </Panel>
 
       {/* Advanced Charts Grid */}

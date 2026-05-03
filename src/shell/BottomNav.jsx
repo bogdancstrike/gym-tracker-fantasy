@@ -7,6 +7,7 @@ export function BottomNav({ screen, onNav }) {
     { id: 'home',      label: 'Champion', icon: Icon.home },
     { id: 'quests',    label: 'Path',     icon: Icon.scroll },
     { id: 'workout',   label: 'Train',    icon: Icon.sword },
+    { id: 'history',   label: 'Log',      icon: Icon.book },
     { id: 'dungeons',  label: 'Glades',   icon: Icon.gate },
     { id: 'inventory', label: 'Hoard',    icon: Icon.chest },
     { id: 'admin',     label: 'Admin',    icon: Icon.settings },
@@ -14,6 +15,7 @@ export function BottomNav({ screen, onNav }) {
     { id: 'home',      label: 'Hunter', icon: Icon.home },
     { id: 'quests',    label: 'Quests', icon: Icon.scroll },
     { id: 'workout',   label: 'Train',  icon: Icon.sword },
+    { id: 'history',   label: 'Log',    icon: Icon.book },
     { id: 'dungeons',  label: 'Gates',  icon: Icon.gate },
     { id: 'inventory', label: 'Vault',  icon: Icon.chest },
     { id: 'admin',     label: 'Admin',  icon: Icon.settings },
@@ -25,7 +27,7 @@ export function BottomNav({ screen, onNav }) {
       background: 'linear-gradient(180deg, transparent, rgba(5,5,13,0.9) 30%)',
     }}>
       <div style={{
-        display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 4,
+        display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4,
         background: 'rgba(13,15,30,0.85)',
         border: '1px solid var(--line)',
         borderRadius: 20, padding: 6,

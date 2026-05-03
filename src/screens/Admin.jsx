@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useGame, STORAGE_KEY } from '../contexts/GameContext.jsx';
 import { THEMES } from '../contexts/ThemeContext.jsx';
 import { Panel } from '../ui/Panel.jsx';
@@ -42,6 +42,37 @@ const SAVED_FIELDS = [
 
 export function Admin() {
   const state = useGame();
+  const [programName, setProgramName] = useState('My Custom Program');
+  const [programFreq, setProgramFreq] = useState(3);
+  const [programBlurb, setProgramBlurb] = useState('A custom training split.');
+  const [programDaysJson, setProgramDaysJson] = useState(JSON.stringify([
+    {
+      name: 'Day 1',
+      focus: 'push',
+      exercises: [
+        { name: 'Bench Press', sets: 3, reps: 8, lift: 'bench', intensity: 0.7 },
+        { name: 'Overhead Press', sets: 3, reps: 8, lift: 'overhead', intensity: 0.6 }
+      ]
+    },
+    {
+      name: 'Day 2',
+      focus: 'pull',
+      exercises: [
+        { name: 'Deadlift', sets: 3, reps: 5, lift: 'deadlift', intensity: 0.7 },
+        { name: 'Barbell Row', sets: 3, reps: 10, lift: 'bench', intensity: 0.5 }
+      ]
+    },
+    {
+      name: 'Day 3',
+      focus: 'legs',
+      exercises: [
+        { name: 'Squat', sets: 4, reps: 8, lift: 'squat', intensity: 0.7 },
+        { name: 'Leg Curl', sets: 3, reps: 12, lift: 'deadlift', intensity: 0.3 }
+      ]
+    }
+  ], null, 2));
+  const [builderError, setBuilderError] = useState('');
+  const [importText, setImportText] = useState('');
 
   const savedState = useMemo(() => {
     try {
@@ -124,6 +155,77 @@ export function Admin() {
         </div>
       </Section>
 
+      <Section title="Create Training Program">
+        <div style={{ display: 'grid', gap: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
+            <Field label="Program name" value={programName} onChange={setProgramName} />
+            <Field label="Days / week" type="number" value={programFreq} onChange={v => setProgramFreq(Number(v))} min="3" max="5" />
+            <Field label="Description" value={programBlurb} onChange={setProgramBlurb} />
+          </div>
+          <textarea
+            value={programDaysJson}
+            onChange={e => setProgramDaysJson(e.target.value)}
+            style={textAreaStyle}
+          />
+          {builderError && <div style={{ color: 'var(--danger)', fontSize: 12 }}>{builderError}</div>}
+          <button
+            onClick={() => {
+              try {
+                const days = JSON.parse(programDaysJson);
+                if (!Array.isArray(days) || days.length < 1) throw new Error('Days must be an array.');
+                state.saveCustomProgram({
+                  id: `custom-${Date.now()}`,
+                  name: programName,
+                  blurb: programBlurb,
+                  frequency: programFreq,
+                  tags: ['custom'],
+                  days,
+                });
+                setBuilderError('');
+              } catch (error) {
+                setBuilderError(error.message || 'Invalid program JSON.');
+              }
+            }}
+            style={adminButtonStyle}
+          >
+            Save custom program
+          </button>
+        </div>
+      </Section>
+
+      <Section title="Backup / Restore">
+        <div style={{ display: 'grid', gap: 10 }}>
+          <button
+            style={adminButtonStyle}
+            onClick={() => {
+              const data = localStorage.getItem(STORAGE_KEY) || '{}';
+              navigator.clipboard?.writeText(data);
+              setImportText(data);
+            }}
+          >
+            Copy current save JSON
+          </button>
+          <textarea
+            value={importText}
+            onChange={e => setImportText(e.target.value)}
+            placeholder="Paste exported save JSON here..."
+            style={{ ...textAreaStyle, minHeight: 140 }}
+          />
+          <button
+            style={adminButtonStyle}
+            onClick={() => {
+              try {
+                state.importSaveData(JSON.parse(importText));
+              } catch (error) {
+                window.alert('Invalid save JSON.');
+              }
+            }}
+          >
+            Import save JSON
+          </button>
+        </div>
+      </Section>
+
       <Section title="Paths / Boss Challenges">
         <div style={{ display: 'grid', gap: 10 }}>
           {DUNGEONS.map(dungeon => (
@@ -187,6 +289,21 @@ function Row({ label, value }) {
       <span className="hud" style={{ color: 'var(--ink-dim)', fontSize: 10 }}>{label}</span>
       <span style={{ color: 'var(--ink)', fontSize: 12, lineHeight: 1.5 }}>{value}</span>
     </div>
+  );
+}
+
+function Field({ label, value, onChange, type = 'text', ...rest }) {
+  return (
+    <label style={{ display: 'grid', gap: 6 }}>
+      <span className="hud" style={{ color: 'var(--ink-dim)', fontSize: 9 }}>{label}</span>
+      <input
+        type={type}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        style={inputStyle}
+        {...rest}
+      />
+    </label>
   );
 }
 
@@ -285,4 +402,43 @@ const chipGrid = {
   flexWrap: 'wrap',
   gap: 8,
   marginTop: 10,
+};
+
+const inputStyle = {
+  width: '100%',
+  boxSizing: 'border-box',
+  padding: '10px 11px',
+  borderRadius: 8,
+  border: '1px solid var(--line)',
+  background: 'rgba(13,15,30,0.55)',
+  color: 'var(--ink)',
+  outline: 'none',
+};
+
+const textAreaStyle = {
+  width: '100%',
+  minHeight: 280,
+  boxSizing: 'border-box',
+  padding: 12,
+  borderRadius: 10,
+  border: '1px solid var(--line)',
+  background: 'rgba(0,0,0,0.24)',
+  color: 'var(--ink)',
+  fontFamily: 'JetBrains Mono, monospace',
+  fontSize: 12,
+  lineHeight: 1.5,
+  outline: 'none',
+};
+
+const adminButtonStyle = {
+  justifySelf: 'start',
+  padding: '10px 14px',
+  borderRadius: 8,
+  border: '1px solid var(--line)',
+  background: 'color-mix(in oklab, var(--cyan) 14%, rgba(13,15,30,0.7))',
+  color: 'var(--cyan)',
+  cursor: 'pointer',
+  fontFamily: 'var(--hud-font)',
+  textTransform: 'uppercase',
+  letterSpacing: '0.1em',
 };

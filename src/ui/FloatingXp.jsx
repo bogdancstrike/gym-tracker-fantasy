@@ -1,4 +1,4 @@
-export function FloatingXp({ amount, x = 0, y = 0, id }) {
+export function FloatingXp({ amount, x = 0, y = 0, id, label = '' }) {
   return (
     <div key={id} className="xp-tick hud" style={{
       position: 'absolute', left: x, top: y,
@@ -7,7 +7,7 @@ export function FloatingXp({ amount, x = 0, y = 0, id }) {
       textShadow: '0 0 10px currentColor',
       pointerEvents: 'none', zIndex: 80,
     }}>
-      +{amount} XP
+      {label ? `${label} · ` : ''}+{amount} XP
     </div>
   );
 }

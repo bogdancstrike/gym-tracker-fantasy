@@ -13,6 +13,7 @@ import { Workout } from './screens/Workout.jsx';
 import { Dungeons } from './screens/Dungeons.jsx';
 import { Inventory } from './screens/Inventory.jsx';
 import { Admin } from './screens/Admin.jsx';
+import { History } from './screens/History.jsx';
 import { BossIntro } from './cinematics/BossIntro.jsx';
 import { QuestReward } from './cinematics/QuestReward.jsx';
 import { LevelUpCinematic } from './cinematics/LevelUpCinematic.jsx';
@@ -30,6 +31,7 @@ const SCREEN_MAP = {
   workout: Workout,
   dungeons: Dungeons,
   inventory: Inventory,
+  history: History,
   admin: Admin,
 };
 

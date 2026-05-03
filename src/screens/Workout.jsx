@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useGame } from '../contexts/GameContext.jsx';
 import { useTheme } from '../contexts/ThemeContext.jsx';
 import { Panel } from '../ui/Panel.jsx';
@@ -7,16 +7,33 @@ import { Icon } from '../ui/Icon.jsx';
 import { FloatingXp } from '../ui/FloatingXp.jsx';
 import { useFloatingXp } from '../hooks/useFloatingXp.js';
 import { formatSetTarget } from '../data/workout.js';
+import { findLastExercise, getProgressionSuggestion, getSetRecordBonus } from '../data/trainingProgress.js';
 
 export function Workout() {
-  const { workout, setWorkout, gainXp, claimWorkout, setScreen } = useGame();
+  const { activeAvatar, workout, setWorkout, gainXp, awardRecordXp, claimWorkout, setScreen } = useGame();
   const { fantasy } = useTheme();
   const { ticks, spawn } = useFloatingXp();
 
-  const [time] = useState(0); // reserved for a rest timer/session timer
+  const [restSeconds, setRestSeconds] = useState(120);
+  const [timerRunning, setTimerRunning] = useState(false);
 
   const totalSets = workout.exercises.reduce((s, e) => s + e.sets.length, 0);
   const doneSets  = workout.exercises.reduce((s, e) => s + e.sets.filter(x => x.done).length, 0);
+  const records = activeAvatar.records || {};
+
+  useEffect(() => {
+    if (!timerRunning) return undefined;
+    const id = setInterval(() => {
+      setRestSeconds(value => {
+        if (value <= 1) {
+          setTimerRunning(false);
+          return 0;
+        }
+        return value - 1;
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, [timerRunning]);
 
   const updateSet = (exId, idx, patch) => {
     setWorkout(w => ({
@@ -35,17 +52,22 @@ export function Workout() {
     }));
   };
 
-  const toggleSet = (exId, idx, btnRect) => {
+  const toggleSet = (exercise, idx, btnRect) => {
+    const set = exercise.sets[idx];
+    const nextDone = !set.done;
+    const completedSet = {
+      ...set,
+      done: nextDone,
+      reps: Number(set.reps || set.plannedReps || String(set.target).match(/×\s*(\d+)/)?.[1] || 5),
+      weight: Number(set.weight || 0),
+    };
+    const recordBonus = nextDone ? getSetRecordBonus(records, exercise.name, completedSet) : null;
+
     setWorkout(w => ({
       ...w,
-      exercises: w.exercises.map(ex => ex.id !== exId ? ex : {
+      exercises: w.exercises.map(ex => ex.id !== exercise.id ? ex : {
         ...ex,
-        sets: ex.sets.map((s, i) => i !== idx ? s : {
-          ...s,
-          done: !s.done,
-          reps: Number(s.reps || s.plannedReps || String(s.target).match(/×\s*(\d+)/)?.[1] || 5),
-          weight: Number(s.weight || 0),
-        }),
+        sets: ex.sets.map((s, i) => i !== idx ? s : completedSet),
       }),
     }));
     if (btnRect) {
@@ -54,9 +76,23 @@ export function Workout() {
       if (parent) {
         const p = parent.getBoundingClientRect();
         spawn(40, rect.left - p.left, rect.top - p.top - 12);
+        if (recordBonus) {
+          spawn(recordBonus.xp, rect.left - p.left - 90, rect.top - p.top - 42, recordBonus.label);
+        }
       }
     }
-    gainXp(40);
+    if (nextDone) {
+      gainXp(40);
+      if (recordBonus) awardRecordXp(recordBonus.xp);
+      setRestSeconds(120);
+      setTimerRunning(true);
+    }
+  };
+
+  const formatTimer = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = String(seconds % 60).padStart(2, '0');
+    return `${mins}:${secs}`;
   };
 
   return (
@@ -81,10 +117,23 @@ export function Workout() {
         <div className="mythic glow-text" style={{ fontSize: 22, color: 'var(--ink)', marginTop: 4 }}>
           {workout.name}
         </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 12, flexWrap: 'wrap' }}>
+          <div className="hud" style={{ color: timerRunning ? 'var(--cyan)' : 'var(--ink-dim)', fontSize: 12 }}>
+            REST {formatTimer(restSeconds)}
+          </div>
+          <Button variant="ghost" style={{ padding: '6px 10px', fontSize: 10 }} onClick={() => setTimerRunning(v => !v)}>
+            {timerRunning ? 'Pause' : 'Start'}
+          </Button>
+          <Button variant="ghost" style={{ padding: '6px 10px', fontSize: 10 }} onClick={() => { setRestSeconds(120); setTimerRunning(false); }}>
+            Reset
+          </Button>
+        </div>
       </Panel>
 
       <div style={{ display: 'grid', gap: 10, marginTop: 12 }}>
-        {workout.exercises.map(ex => (
+        {workout.exercises.map(ex => {
+          const lastExercise = findLastExercise(activeAvatar.history || [], workout, ex.name);
+          return (
           <Panel key={ex.id} style={{ padding: 14 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
               <div className="mythic" style={{ fontSize: 16, color: 'var(--ink)' }}>{ex.name}</div>
@@ -95,7 +144,7 @@ export function Workout() {
             <div style={{ display: 'grid', gap: 6 }}>
               {ex.sets.map((s, i) => (
                 <div key={i} style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap',
                   gap: 10, padding: '10px 12px', borderRadius: 10,
                   border: '1px solid var(--line)',
                   background: s.done
@@ -105,6 +154,14 @@ export function Workout() {
                   transition: 'all 200ms ease',
                 }}>
                   <span className="hud" style={{ fontSize: 10, color: 'var(--ink-dim)', width: 46 }}>SET {i + 1}</span>
+                  <div style={{ width: 112, minWidth: 92 }}>
+                    <div className="hud" style={{ fontSize: 8, letterSpacing: '0.12em', color: 'var(--ink-dim)' }}>LAST</div>
+                    <div style={{ fontSize: 11, color: 'var(--ink-dim)', marginTop: 3 }}>
+                      {lastExercise?.sets?.[i]
+                        ? `${lastExercise.sets[i].weight || 0}kg x ${lastExercise.sets[i].reps || 0}`
+                        : 'baseline'}
+                    </div>
+                  </div>
                   <SetInput
                     label="kg"
                     value={s.weight || ''}
@@ -116,7 +173,7 @@ export function Workout() {
                     onChange={value => updateSet(ex.id, i, { reps: value === '' ? 0 : Number(value) })}
                   />
                   <button
-                    onClick={(e) => toggleSet(ex.id, i, e.currentTarget)}
+                    onClick={(e) => toggleSet(ex, i, e.currentTarget)}
                     aria-label={`Mark set ${i + 1} ${s.done ? 'unfinished' : 'done'}`}
                     style={{
                       width: 34, height: 34, flexShrink: 0,
@@ -130,11 +187,14 @@ export function Workout() {
                   >
                     <span className={`chk ${s.done ? 'checked' : ''}`} style={{ width: 20, height: 20 }} />
                   </button>
+                  <div style={{ flexBasis: '100%', color: 'var(--ink-dim)', fontSize: 11, lineHeight: 1.4, paddingLeft: 56 }}>
+                    {getProgressionSuggestion(lastExercise?.sets?.[i], s)}
+                  </div>
                 </div>
               ))}
             </div>
           </Panel>
-        ))}
+        );})}
       </div>
 
       <Button 
