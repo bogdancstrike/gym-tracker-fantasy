@@ -136,35 +136,9 @@ export function Admin() {
       </Section>
 
       <Section title="Training Programs">
-        <div style={{ display: 'grid', gap: 10 }}>
+        <div style={{ display: 'grid', gap: 16 }}>
           {groupedPrograms.map(group => (
-            <Panel key={`program-group-${group.frequency}`} style={{ padding: 14 }}>
-              <div className="hud" style={{ color: 'var(--gold)', fontSize: 10, letterSpacing: '0.18em', marginBottom: 12 }}>
-                {group.frequency} DAYS / WEEK
-              </div>
-              <ProgramFlowChart programs={group.programs} frequency={group.frequency} />
-              <div style={{ display: 'grid', gap: 10, marginTop: 14 }}>
-                {group.programs.map(program => (
-                  <Panel key={program.id} style={{ padding: 14 }}>
-                    <div className="mythic" style={{ color: 'var(--ink)', fontSize: 16 }}>{program.name}</div>
-                    <div style={{ color: 'var(--ink-dim)', fontSize: 12, marginTop: 4 }}>{program.frequency} days/week · {program.blurb}</div>
-                    <div style={chipGrid}>
-                      {(program.tags || []).map(tag => <Chip key={`${program.id}-tag-${tag}`}>{tag}</Chip>)}
-                      {program.custom && <Chip>custom</Chip>}
-                    </div>
-                    <div style={{ display: 'grid', gap: 10, marginTop: 12 }}>
-                      {(program.days || []).map((trainingDay, dayIndex) => (
-                        <ProgramDay
-                          key={`${program.id}-day-${trainingDay.name || dayIndex}`}
-                          day={trainingDay}
-                          dayIndex={dayIndex}
-                        />
-                      ))}
-                    </div>
-                  </Panel>
-                ))}
-              </div>
-            </Panel>
+            <ProgramFlowChart key={`program-group-${group.frequency}`} programs={group.programs} frequency={group.frequency} />
           ))}
         </div>
       </Section>
@@ -373,23 +347,34 @@ function ProgramDay({ day, dayIndex }) {
 }
 
 function ProgramFlowChart({ programs, frequency }) {
-  const lanes = programs.flatMap((program, programIndex) => (
-    (program.days || []).map((day, dayIndex) => ({
-      id: `${program.id}-${dayIndex}`,
-      program,
-      programIndex,
-      day,
-      dayIndex,
-      exercises: Array.isArray(day?.exercises) ? day.exercises : [],
-    }))
-  ));
-  const width = 980;
-  const rowHeight = 54;
-  const height = Math.max(180, lanes.length * rowHeight + 62);
-  const programX = 34;
-  const dayX = 340;
-  const exerciseX = 690;
-  const colors = ['var(--cyan)', 'var(--gold)', 'var(--violet)', 'var(--danger)', '#34d399'];
+  const chart = buildProgramSankey(programs);
+  const width = 1180;
+  const height = Math.max(520, Math.max(chart.programs.length, chart.days.length, chart.exercises.length) * 34 + 140);
+  const columns = {
+    program: { x: 42, nodeWidth: 210 },
+    day: { x: 438, nodeWidth: 260 },
+    exercise: { x: 862, nodeWidth: 260 },
+  };
+  const colors = ['#22d3ee', '#facc15', '#a78bfa', '#fb7185', '#34d399', '#f59e0b', '#60a5fa'];
+  const maxValue = Math.max(1, ...chart.links.map(link => link.value));
+  const nodeMeta = new Map();
+
+  const positionNodes = (nodes, column, top = 112) => {
+    const gap = Math.max(24, Math.min(42, (height - top - 44) / Math.max(1, nodes.length)));
+    nodes.forEach((node, index) => {
+      nodeMeta.set(node.id, {
+        ...node,
+        x: columns[column].x,
+        y: top + index * gap,
+        width: columns[column].nodeWidth,
+        color: node.color || colors[index % colors.length],
+      });
+    });
+  };
+
+  positionNodes(chart.programs, 'program', 124);
+  positionNodes(chart.days, 'day', 104);
+  positionNodes(chart.exercises, 'exercise', 86);
 
   if (programs.length === 0) {
     return (
@@ -414,48 +399,141 @@ function ProgramFlowChart({ programs, frequency }) {
       overflowX: 'auto',
       overflowY: 'hidden',
     }}>
-      <svg viewBox={`0 0 ${width} ${height}`} width="100%" height={height} role="img" aria-label={`${frequency} day training program flow chart`}>
-        <text x={programX} y="24" fill="var(--ink-dim)" fontSize="10" fontFamily="JetBrains Mono, monospace">PROGRAM</text>
-        <text x={dayX} y="24" fill="var(--ink-dim)" fontSize="10" fontFamily="JetBrains Mono, monospace">TRAINING DAY</text>
-        <text x={exerciseX} y="24" fill="var(--ink-dim)" fontSize="10" fontFamily="JetBrains Mono, monospace">EXERCISES</text>
+      <svg viewBox={`0 0 ${width} ${height}`} width="100%" height={height} role="img" aria-label={`${frequency} day training split Sankey diagram`}>
+        <title>{frequency} days per week training split architecture</title>
+        <text x={width / 2} y="30" fill="var(--ink)" textAnchor="middle" fontSize="20" fontWeight="700" fontFamily="inherit">
+          {frequency}x/week Training Split Architecture
+        </text>
+        <text x={width / 2} y="52" fill="var(--ink-dim)" textAnchor="middle" fontSize="12" fontFamily="inherit">
+          Volume Distribution · Total Prescribed Reps
+        </text>
+        <text x={columns.program.x} y="84" fill="var(--ink-dim)" fontSize="10" fontFamily="JetBrains Mono, monospace">PROGRAM</text>
+        <text x={columns.day.x} y="84" fill="var(--ink-dim)" fontSize="10" fontFamily="JetBrains Mono, monospace">TRAINING DAY</text>
+        <text x={columns.exercise.x} y="84" fill="var(--ink-dim)" fontSize="10" fontFamily="JetBrains Mono, monospace">EXERCISE</text>
 
-        {lanes.map((lane, laneIndex) => {
-          const y = 50 + laneIndex * rowHeight;
-          const color = colors[lane.programIndex % colors.length];
-          const dayName = typeof lane.day === 'string' ? lane.day : lane.day.name;
-          const exerciseLabel = lane.exercises.length
-            ? lane.exercises.map(exercise => `${exercise.name} (${exercise.sets}x${exercise.reps})`).join(' · ')
-            : 'No exercises';
+        {chart.links.map((link, index) => {
+          const source = nodeMeta.get(link.source);
+          const target = nodeMeta.get(link.target);
+          if (!source || !target) return null;
+          const strokeWidth = 2 + (link.value / maxValue) * 18;
+          const color = source.color;
           return (
-            <g key={lane.id}>
+            <g key={`${link.source}-${link.target}-${index}`}>
+              <title>{source.label} -> {target.label}: {link.value} reps</title>
               <path
-                d={`M ${programX + 190} ${y + 16} C ${programX + 260} ${y + 16}, ${dayX - 70} ${y + 16}, ${dayX} ${y + 16}`}
+                d={`M ${source.x + source.width} ${source.y + 12} C ${source.x + source.width + 115} ${source.y + 12}, ${target.x - 115} ${target.y + 12}, ${target.x} ${target.y + 12}`}
                 stroke={color}
-                strokeWidth="8"
-                strokeOpacity="0.28"
+                strokeWidth={strokeWidth}
+                strokeOpacity="0.26"
                 fill="none"
                 strokeLinecap="round"
               />
-              <path
-                d={`M ${dayX + 220} ${y + 16} C ${dayX + 285} ${y + 16}, ${exerciseX - 70} ${y + 16}, ${exerciseX} ${y + 16}`}
-                stroke={color}
-                strokeWidth={Math.max(4, Math.min(12, lane.exercises.length * 2))}
-                strokeOpacity="0.24"
-                fill="none"
-                strokeLinecap="round"
+            </g>
+          );
+        })}
+
+        {[...chart.programs, ...chart.days, ...chart.exercises].map(node => {
+          const meta = nodeMeta.get(node.id);
+          if (!meta) return null;
+          return (
+            <g key={node.id}>
+              <rect
+                x={meta.x}
+                y={meta.y}
+                width={meta.width}
+                height="24"
+                rx="7"
+                fill="rgba(13,15,30,0.88)"
+                stroke={meta.color}
+                strokeOpacity="0.75"
               />
-              <rect x={programX} y={y} width="190" height="32" rx="8" fill="rgba(13,15,30,0.78)" stroke={color} strokeOpacity="0.55" />
-              <rect x={dayX} y={y} width="220" height="32" rx="8" fill="rgba(13,15,30,0.78)" stroke="var(--line)" />
-              <rect x={exerciseX} y={y} width="260" height="32" rx="8" fill="rgba(13,15,30,0.78)" stroke="var(--line)" />
-              <text x={programX + 10} y={y + 20} fill="var(--ink)" fontSize="12" fontFamily="inherit">{truncate(lane.program.name, 24)}</text>
-              <text x={dayX + 10} y={y + 20} fill="var(--ink)" fontSize="12" fontFamily="inherit">Day {lane.dayIndex + 1} · {truncate(dayName, 24)}</text>
-              <text x={exerciseX + 10} y={y + 20} fill="var(--ink-dim)" fontSize="11" fontFamily="inherit">{truncate(exerciseLabel, 42)}</text>
+              <text x={meta.x + 10} y={meta.y + 16} fill="var(--ink)" fontSize="11" fontFamily="inherit">
+                {truncate(meta.label, meta.width > 240 ? 34 : 26)}
+              </text>
             </g>
           );
         })}
       </svg>
     </div>
   );
+}
+
+function buildProgramSankey(programs) {
+  const programNodes = [];
+  const dayNodes = [];
+  const exerciseMap = new Map();
+  const links = [];
+  const programColors = ['#f18bbf', '#0078D7', '#EA005E', '#3891A7', '#2BCC7F', '#8164A3'];
+
+  programs.forEach((program, programIndex) => {
+    const programId = `program:${program.id}`;
+    const programColor = programColors[programIndex % programColors.length];
+    programNodes.push({ id: programId, label: program.name, color: programColor });
+
+    (program.days || []).forEach((day, dayIndex) => {
+      const dayName = typeof day === 'string' ? day : day.name;
+      const exercises = Array.isArray(day?.exercises) ? day.exercises : [];
+      const dayId = `day:${program.id}:${dayIndex}`;
+      const dayValue = exercises.reduce((sum, exercise) => sum + exerciseReps(exercise), 0);
+
+      dayNodes.push({
+        id: dayId,
+        label: `${programCode(program.name)} Day ${dayIndex + 1}: ${dayName}`,
+        color: programColor,
+      });
+      links.push({ source: programId, target: dayId, value: dayValue });
+
+      exercises.forEach(exercise => {
+        const exerciseId = `exercise:${exercise.name}`;
+        if (!exerciseMap.has(exerciseId)) {
+          exerciseMap.set(exerciseId, {
+            id: exerciseId,
+            label: exercise.name,
+            color: exerciseColor(exercise.name),
+          });
+        }
+        links.push({ source: dayId, target: exerciseId, value: exerciseReps(exercise) });
+      });
+    });
+  });
+
+  return {
+    programs: programNodes,
+    days: dayNodes,
+    exercises: [...exerciseMap.values()].sort((a, b) => a.label.localeCompare(b.label)),
+    links,
+  };
+}
+
+function exerciseReps(exercise) {
+  return Number(exercise?.sets || 0) * parseRepValue(exercise?.reps);
+}
+
+function parseRepValue(reps) {
+  if (typeof reps === 'number') return reps;
+  const matches = String(reps || '').match(/\d+/g);
+  if (!matches?.length) return 0;
+  const values = matches.map(Number);
+  return Math.round(values.reduce((sum, value) => sum + value, 0) / values.length);
+}
+
+function programCode(name = '') {
+  const cleaned = String(name).replace(/[·/×+]/g, ' ');
+  const words = cleaned.split(/\s+/).filter(Boolean);
+  if (words.length <= 2) return words.map(word => word[0]).join('').toUpperCase();
+  return words.slice(0, 3).map(word => word[0]).join('').toUpperCase();
+}
+
+function exerciseColor(name = '') {
+  const n = name.toLowerCase();
+  if (/squat|leg|lunge|calf|quad|hamstring/.test(n)) return '#2BCC7F';
+  if (/bench|chest|press|fly|push-up|pushup/.test(n)) return '#00BCF2';
+  if (/deadlift|hinge|thrust/.test(n)) return '#D13438';
+  if (/row|pull|lat|back/.test(n)) return '#A5644E';
+  if (/curl|triceps|skull|pressdown|arms/.test(n)) return '#EA005E';
+  if (/overhead|shoulder|lateral|rear delt/.test(n)) return '#8164A3';
+  if (/plank|carry|sprint|burpee|jump|bike/.test(n)) return '#f59e0b';
+  return '#94a3b8';
 }
 
 function truncate(value = '', max = 40) {

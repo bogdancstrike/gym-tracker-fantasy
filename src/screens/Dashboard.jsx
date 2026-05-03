@@ -35,6 +35,7 @@ export function Dashboard() {
 
   const [metricType, setMetricType] = useState('weight');
   const [metricValue, setMetricValue] = useState('');
+  const [maximizedChart, setMaximizedChart] = useState(null);
 
   // --- Metrics Data ---
   const metrics = av.metrics || [];
@@ -237,10 +238,9 @@ export function Dashboard() {
       {/* Advanced Charts Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 16, marginTop: 16 }}>
         
-        {/* Workout History (30 Days) */}
-        <Panel glass style={{ padding: 20 }}>
-          <div className="hud" style={{ fontSize: 10, color: 'var(--violet)', marginBottom: 16 }}>WORKOUT INTENSITY (LAST 30 DAYS)</div>
-          <div style={{ height: 180, width: '100%', minHeight: 180 }}>
+        <ChartBox id="workout-intensity" title="WORKOUT INTENSITY (LAST 30 DAYS)" color="var(--violet)" height={180} maximizedChart={maximizedChart} setMaximizedChart={setMaximizedChart}>
+          {chartHeight => (
+          <div style={{ height: chartHeight, width: '100%', minHeight: chartHeight }}>
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={last30Days}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
@@ -253,12 +253,12 @@ export function Dashboard() {
               </AreaChart>
             </ResponsiveContainer>
           </div>
-        </Panel>
+          )}
+        </ChartBox>
 
-        {/* Workout Frequency */}
-        <Panel glass style={{ padding: 20 }}>
-          <div className="hud" style={{ fontSize: 10, color: 'var(--cyan)', marginBottom: 16 }}>ACTIVITY DISTRIBUTION</div>
-          <div style={{ height: 180, width: '100%', minHeight: 180 }}>
+        <ChartBox id="activity-distribution" title="ACTIVITY DISTRIBUTION" color="var(--cyan)" height={180} maximizedChart={maximizedChart} setMaximizedChart={setMaximizedChart}>
+          {chartHeight => (
+          <div style={{ height: chartHeight, width: '100%', minHeight: chartHeight }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={frequencyData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
@@ -269,11 +269,12 @@ export function Dashboard() {
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </Panel>
+          )}
+        </ChartBox>
 
-        <Panel glass style={{ padding: 20 }}>
-          <div className="hud" style={{ fontSize: 10, color: 'var(--gold)', marginBottom: 16 }}>MUSCLE GROUP FREQUENCY</div>
-          <div style={{ height: 240, width: '100%', minHeight: 240 }}>
+        <ChartBox id="muscle-frequency" title="MUSCLE GROUP FREQUENCY" color="var(--gold)" height={240} maximizedChart={maximizedChart} setMaximizedChart={setMaximizedChart}>
+          {chartHeight => (
+          <div style={{ height: chartHeight, width: '100%', minHeight: chartHeight }}>
             <ResponsiveContainer width="100%" height="100%">
               <RadarChart data={muscleFrequencyData}>
                 <PolarGrid stroke="rgba(255,255,255,0.12)" />
@@ -284,11 +285,12 @@ export function Dashboard() {
               </RadarChart>
             </ResponsiveContainer>
           </div>
-        </Panel>
+          )}
+        </ChartBox>
 
-        <Panel glass style={{ padding: 20 }}>
-          <div className="hud" style={{ fontSize: 10, color: 'var(--cyan)', marginBottom: 16 }}>ESTIMATED 1RM TREND</div>
-          <div style={{ height: 240, width: '100%', minHeight: 240 }}>
+        <ChartBox id="estimated-1rm" title="ESTIMATED 1RM TREND" color="var(--cyan)" height={240} maximizedChart={maximizedChart} setMaximizedChart={setMaximizedChart}>
+          {chartHeight => (
+          <div style={{ height: chartHeight, width: '100%', minHeight: chartHeight }}>
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={oneRepMaxTrend}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
@@ -302,11 +304,12 @@ export function Dashboard() {
               </LineChart>
             </ResponsiveContainer>
           </div>
-        </Panel>
+          )}
+        </ChartBox>
 
-        <Panel glass style={{ padding: 20 }}>
-          <div className="hud" style={{ fontSize: 10, color: 'var(--violet)', marginBottom: 16 }}>VOLUME BY MUSCLE GROUP</div>
-          <div style={{ height: 240, width: '100%', minHeight: 240 }}>
+        <ChartBox id="muscle-volume" title="VOLUME BY MUSCLE GROUP" color="var(--violet)" height={240} maximizedChart={maximizedChart} setMaximizedChart={setMaximizedChart}>
+          {chartHeight => (
+          <div style={{ height: chartHeight, width: '100%', minHeight: chartHeight }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={muscleVolumeData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
@@ -317,11 +320,12 @@ export function Dashboard() {
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </Panel>
+          )}
+        </ChartBox>
 
-        <Panel glass style={{ padding: 20 }}>
-          <div className="hud" style={{ fontSize: 10, color: 'var(--cyan)', marginBottom: 16 }}>ADHERENCE CALENDAR</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(24px, 1fr))', gap: 7 }}>
+        <ChartBox id="adherence-calendar" title="ADHERENCE CALENDAR" color="var(--cyan)" height={240} maximizedChart={maximizedChart} setMaximizedChart={setMaximizedChart}>
+          {chartHeight => (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(24px, 1fr))', gap: 7, minHeight: chartHeight, alignContent: 'center' }}>
             {adherenceCalendar.map(day => (
               <div
                 key={day.key}
@@ -345,7 +349,8 @@ export function Dashboard() {
               </div>
             ))}
           </div>
-        </Panel>
+          )}
+        </ChartBox>
       </div>
 
       {/* Metrics Section */}
