@@ -344,12 +344,21 @@ export function GameProvider({ children }) {
   const createAvatar = useCallback((newAv) => {
     const program = getAvatarProgram(newAv, customPrograms);
     const workout = createWorkoutFromProfile(newAv.profile, program);
+    const createdAt = new Date().toISOString();
+    const startingLifts = newAv.profile?.startingLifts || {};
+    const initialMetrics = [
+      newAv.profile?.bodyweightKg ? { id: `${newAv.id}-metric-weight`, type: 'weight', value: Number(newAv.profile.bodyweightKg), date: createdAt } : null,
+      startingLifts.bench ? { id: `${newAv.id}-metric-bench`, type: 'bench', value: Number(startingLifts.bench), date: createdAt } : null,
+      startingLifts.squat ? { id: `${newAv.id}-metric-squat`, type: 'squat', value: Number(startingLifts.squat), date: createdAt } : null,
+      startingLifts.deadlift ? { id: `${newAv.id}-metric-deadlift`, type: 'deadlift', value: Number(startingLifts.deadlift), date: createdAt } : null,
+      startingLifts.overhead ? { id: `${newAv.id}-metric-overhead`, type: 'overhead', value: Number(startingLifts.overhead), date: createdAt } : null,
+    ].filter(Boolean);
     const avWithEquip = {
       ...newAv,
       equippedIds: [],
       rank: getRankForLevel(newAv.level),
       history: [],
-      metrics: [],
+      metrics: initialMetrics,
       records: {},
       programDayIndex: 0,
       workout,

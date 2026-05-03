@@ -28,6 +28,19 @@ export function Dashboard() {
     ...m,
     dateFormatted: new Date(m.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
   }));
+  const liftMetricTypes = [
+    { type: 'bench', label: 'Bench / Chest Press', color: 'var(--cyan)' },
+    { type: 'squat', label: 'Squat', color: 'var(--gold)' },
+    { type: 'deadlift', label: 'Deadlift', color: 'var(--danger)' },
+    { type: 'overhead', label: 'Overhead Press', color: 'var(--violet)' },
+  ];
+  const liftMetricData = liftMetricTypes.map(metric => ({
+    ...metric,
+    data: metrics.filter(m => m.type === metric.type).map(m => ({
+      ...m,
+      dateFormatted: new Date(m.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+    }))
+  }));
 
   // --- History & Stats Data ---
   const history = av.history || [];
@@ -238,6 +251,10 @@ export function Dashboard() {
           >
             <option value="weight">Bodyweight (KG)</option>
             <option value="kcal">Calories (kcal/day)</option>
+            <option value="bench">Bench / Chest Press (KG)</option>
+            <option value="squat">Squat (KG)</option>
+            <option value="deadlift">Deadlift (KG)</option>
+            <option value="overhead">Overhead Press (KG)</option>
           </select>
           <input 
             type="number" 
@@ -287,6 +304,23 @@ export function Dashboard() {
               </ResponsiveContainer>
             </div>
           </div>
+
+          {liftMetricData.map(metric => (
+            <div key={metric.type}>
+              <div className="hud" style={{ fontSize: 10, color: metric.color, marginBottom: 16 }}>{metric.label} (KG)</div>
+              <div style={{ height: 200, minHeight: 200 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={metric.data}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                    <XAxis dataKey="dateFormatted" stroke="var(--ink-ghost)" fontSize={9} />
+                    <YAxis domain={['auto', 'auto']} stroke="var(--ink-ghost)" fontSize={9} />
+                    <Tooltip contentStyle={{ background: 'rgba(10,11,28,0.95)', border: '1px solid var(--line)', fontSize: 10 }} />
+                    <Line type="monotone" dataKey="value" stroke={metric.color} strokeWidth={2} dot={{ r: 3 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          ))}
         </div>
       </Panel>
     </div>
