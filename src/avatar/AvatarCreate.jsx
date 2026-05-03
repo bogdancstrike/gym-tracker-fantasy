@@ -42,7 +42,17 @@ export function AvatarCreate({ onClose, onCreated }) {
   });
 
   const programs = availablePrograms[freq] || [];
-  const selectedProgram = programs.find(p => p.id === programId) || programs[0];
+  const selectedProgram = programs.find(p => p.id === programId);
+
+  useEffect(() => {
+    if (programs.length === 0) {
+      setProgramId('');
+      return;
+    }
+    if (!programs.some(p => p.id === programId)) {
+      setProgramId(programs[0].id);
+    }
+  }, [programs, programId]);
 
   const canAdvance = () => {
     if (STEPS[step] === 'race') return !!selectedRace && !selectedRace.locked;
@@ -54,6 +64,7 @@ export function AvatarCreate({ onClose, onCreated }) {
         && Number(profile.startingLifts.deadlift) > 0
         && Number(profile.startingLifts.overhead) > 0;
     }
+    if (STEPS[step] === 'program') return !!selectedProgram;
     return true;
   };
 
@@ -61,7 +72,8 @@ export function AvatarCreate({ onClose, onCreated }) {
   const back = () => setStep(s => Math.max(s - 1, 0));
 
   const handleCreate = () => {
-    const prog = selectedProgram || programs[0];
+    const prog = selectedProgram;
+    if (!prog) return;
     onCreated({
       id: `av-${Date.now()}`,
       race: selectedRace.id,
@@ -679,13 +691,19 @@ function ProgramStep({ freq, setFreq, programId, setProgramId, programs, fantasy
           >{d}×</button>
         ))}
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div
+        role="radiogroup"
+        aria-label="Training program"
+        style={{ display: 'flex', flexDirection: 'column', gap: 10 }}
+      >
         {programs.map(p => {
           const selected = programId === p.id;
           return (
             <button
               key={p.id}
               onClick={() => setProgramId(p.id)}
+              role="radio"
+              aria-checked={selected}
               style={{
                 padding: '16px 20px', borderRadius: 12, textAlign: 'left',
                 border: `1.5px solid ${selected ? 'var(--cyan)' : 'var(--line)'}`,
@@ -696,11 +714,34 @@ function ProgramStep({ freq, setFreq, programId, setProgramId, programs, fantasy
                 transition: 'all 180ms',
               }}
             >
-              <div className="mythic" style={{ fontSize: 16, color: 'var(--ink)' }}>{p.name}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{
+                  width: 18,
+                  height: 18,
+                  borderRadius: '50%',
+                  border: `1.5px solid ${selected ? 'var(--cyan)' : 'var(--line)'}`,
+                  display: 'grid',
+                  placeItems: 'center',
+                  flexShrink: 0,
+                }}>
+                  {selected && <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--cyan)', boxShadow: '0 0 10px var(--cyan)' }} />}
+                </span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="mythic" style={{ fontSize: 16, color: 'var(--ink)' }}>{p.name}</div>
+                  {selected && (
+                    <div className="hud" style={{ fontSize: 9, color: 'var(--cyan)', marginTop: 3, letterSpacing: '0.14em' }}>
+                      SELECTED TRAINING
+                    </div>
+                  )}
+                </div>
+              </div>
               <div style={{ fontSize: 12, color: 'var(--ink-dim)', marginTop: 4 }}>{p.blurb}</div>
+              <div className="hud" style={{ fontSize: 9, color: 'var(--ink-dim)', marginTop: 10, letterSpacing: '0.14em' }}>
+                INCLUDED DAYS
+              </div>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
                 {(p.days || []).map(day => (
-                  <span key={day.name || day} style={{
+                  <span key={`${p.id}-${day.name || day}`} style={{
                     fontSize: 10,
                     color: 'var(--ink-dim)',
                     padding: '4px 7px',

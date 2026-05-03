@@ -32,8 +32,26 @@ function getAvatarProgram(avatar, customPrograms = []) {
   return programs.find(p => p.id === avatar?.program?.id) || programs[0];
 }
 
+function findProgramById(programId, customPrograms = []) {
+  if (!programId) return null;
+  const allPrograms = mergePrograms(customPrograms);
+  for (const [freq, programs] of Object.entries(allPrograms)) {
+    const program = programs.find(p => p.id === programId);
+    if (program) return { program, freq: Number(freq) };
+  }
+  return null;
+}
+
+function getWorkoutProgram(avatar, workout, customPrograms = []) {
+  return findProgramById(workout?.programId, customPrograms)
+    || findProgramById(avatar?.program?.id, customPrograms)
+    || { program: getAvatarProgram(avatar, customPrograms), freq: avatar?.program?.freq || 4 };
+}
+
 function normalizeAvatar(avatar, legacyWorkout, customPrograms = []) {
-  const program = getAvatarProgram(avatar, customPrograms);
+  const workout = avatar.workout || legacyWorkout;
+  const programInfo = getWorkoutProgram(avatar, workout, customPrograms);
+  const program = programInfo.program;
   const profile = avatar.profile || {
     sex: 'not-specified',
     bodyweightKg: '',
@@ -56,7 +74,8 @@ function normalizeAvatar(avatar, legacyWorkout, customPrograms = []) {
     metrics: avatar.metrics || [],
     records: avatar.records || buildRecordsFromHistory(avatar.history || []),
     programDayIndex: avatar.programDayIndex || 0,
-    workout: avatar.workout || legacyWorkout || createWorkoutFromProfile(profile, program),
+    program: program ? { freq: programInfo.freq, id: program.id } : avatar.program,
+    workout: workout || createWorkoutFromProfile(profile, program),
   };
 }
 
@@ -257,17 +276,22 @@ export function GameProvider({ children }) {
     const completionRatio = totalSets > 0 ? doneSets / totalSets : 1;
     const amount = isBoss ? Math.round(450 * completionRatio) : Math.round(150 * completionRatio);
     const today = new Date().toISOString();
-    const program = getAvatarProgram(activeAvatar, customPrograms);
+    const programInfo = getWorkoutProgram(activeAvatar, workout, customPrograms);
+    const program = programInfo.program;
+    const currentDayIndex = Number.isFinite(Number(workout.dayIndex))
+      ? Number(workout.dayIndex)
+      : Number(activeAvatar.programDayIndex || 0);
     const nextDayIndex = isBoss || !program?.days?.length
-      ? activeAvatar.programDayIndex || 0
-      : ((activeAvatar.programDayIndex || workout.dayIndex || 0) + 1) % program.days.length;
+      ? currentDayIndex
+      : (currentDayIndex + 1) % program.days.length;
+    const canonicalProgram = program ? { freq: programInfo.freq, id: program.id } : activeAvatar.program;
     
     const workoutEntry = {
       id: Date.now(),
       type: isBoss ? 'boss' : 'workout',
       date: today,
       name: workout.name,
-      program: activeAvatar.program,
+      program: canonicalProgram,
       dayName: workout.dayName,
       dayIndex: workout.dayIndex,
       completed: doneSets >= totalSets,
@@ -289,12 +313,14 @@ export function GameProvider({ children }) {
         totalXpToday: activeAvatar.totalXpToday + amount,
         history,
         records,
+        program: canonicalProgram,
       });
     } else {
       updateActive({ 
         totalXpToday: activeAvatar.totalXpToday + amount,
         history,
         records,
+        program: canonicalProgram,
         programDayIndex: nextDayIndex,
         workout: nextWorkout,
       });
