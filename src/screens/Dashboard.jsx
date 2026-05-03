@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useGame } from '../contexts/GameContext.jsx';
 import { useTheme } from '../contexts/ThemeContext.jsx';
 import { Panel } from '../ui/Panel.jsx';
@@ -7,7 +7,7 @@ import { StatBar } from '../ui/StatBar.jsx';
 import { Button } from '../ui/Button.jsx';
 import { Icon } from '../ui/Icon.jsx';
 import { RANK_COLORS } from '../data/ranks.js';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, AreaChart, Area } from 'recharts';
 
 export function Dashboard() {
   const { activeAvatar, race, setScreen, quests, effectiveStats, addMetric, updateActive } = useGame();
@@ -18,15 +18,45 @@ export function Dashboard() {
   const [metricType, setMetricType] = useState('weight');
   const [metricValue, setMetricValue] = useState('');
 
+  // --- Metrics Data ---
   const metrics = av.metrics || [];
   const weightData = metrics.filter(m => m.type === 'weight').map(m => ({
     ...m,
-    dateFormatted: new Date(m.date).toLocaleDateString()
+    dateFormatted: new Date(m.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
   }));
   const kcalData = metrics.filter(m => m.type === 'kcal').map(m => ({
     ...m,
-    dateFormatted: new Date(m.date).toLocaleDateString()
+    dateFormatted: new Date(m.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
   }));
+
+  // --- History & Stats Data ---
+  const history = av.history || [];
+  
+  // Workouts in last 30 days
+  const last30Days = useMemo(() => {
+    const data = [];
+    const now = new Date();
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toDateString();
+      const count = history.filter(h => new Date(h.date).toDateString() === dateStr).length;
+      data.push({
+        name: d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+        workouts: count
+      });
+    }
+    return data;
+  }, [history]);
+
+  // Workout Frequency (Type distribution)
+  const frequencyData = useMemo(() => {
+    const types = history.reduce((acc, h) => {
+      acc[h.type] = (acc[h.type] || 0) + 1;
+      return acc;
+    }, {});
+    return Object.entries(types).map(([name, value]) => ({ name: name.toUpperCase(), value }));
+  }, [history]);
 
   const handleAddMetric = () => {
     if (!metricValue || isNaN(metricValue)) return;
@@ -42,7 +72,7 @@ export function Dashboard() {
 
   return (
     <div className="screen-enter" style={{ padding: '6px 16px 130px' }}>
-      {/* Hunter card */}
+      {/* Champion Card */}
       <Panel glass ticks style={{ padding: 24, marginTop: 8 }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 24, flexWrap: 'wrap' }}>
           <div style={{ position: 'relative' }}>
@@ -86,14 +116,15 @@ export function Dashboard() {
         </div>
       </Panel>
 
-      {/* Today stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginTop: 16 }}>
+      {/* Quick Stats Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginTop: 16 }}>
         <StatTile label="Streak" value={`${av.streak}d`} icon={Icon.flame} color="var(--gold)" />
         <StatTile label={fantasy ? 'Lumen Today' : 'XP Today'} value={`+${av.totalXpToday}`} icon={Icon.lightning} color="var(--cyan)" />
-        <StatTile label={fantasy ? 'Paths' : 'Quests'} value={`${quests.filter(q => q.done).length}/${quests.length}`} icon={Icon.check} color="var(--violet)" />
+        <StatTile label={fantasy ? 'Glades' : 'Bosses'} value={av.bossWins || 0} icon={Icon.skull} color="var(--danger)" />
+        <StatTile label="Total Workouts" value={history.length} icon={Icon.barbell} color="var(--violet)" />
       </div>
 
-      {/* Stat Panel (Full Width) */}
+      {/* Attribute Panel (Full Width) */}
       <Panel glass style={{ padding: 24, marginTop: 16 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <div className="hud" style={{ fontSize: 11, letterSpacing: '0.24em', color: 'var(--ink-dim)' }}>
@@ -103,20 +134,58 @@ export function Dashboard() {
             STRENGTHENED BY SOUL
           </div>
         </div>
-        <div style={{ display: 'grid', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: x => x % 2 === 0 ? 12 : 24 }}>
           {Object.entries(effectiveStats).map(([k, v]) => (
             <StatBar key={k} label={k} value={v} max={120} color={race?.color || 'var(--cyan)'} />
           ))}
         </div>
       </Panel>
 
-      {/* Metrics Dashboard */}
+      {/* Advanced Charts Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 16, marginTop: 16 }}>
+        
+        {/* Workout History (30 Days) */}
+        <Panel glass style={{ padding: 20 }}>
+          <div className="hud" style={{ fontSize: 10, color: 'var(--violet)', marginBottom: 16 }}>WORKOUT INTENSITY (LAST 30 DAYS)</div>
+          <div style={{ height: 180, width: '100%', minHeight: 180 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={last30Days}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                <XAxis dataKey="name" stroke="var(--ink-ghost)" fontSize={9} tickMargin={10} hide={window.innerWidth < 500} />
+                <YAxis hide />
+                <Tooltip 
+                  contentStyle={{ background: 'rgba(10,11,28,0.95)', border: '1px solid var(--line)', borderRadius: 8, fontSize: 10 }}
+                />
+                <Area type="monotone" dataKey="workouts" stroke="var(--violet)" fill="rgba(168, 85, 247, 0.2)" strokeWidth={2} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </Panel>
+
+        {/* Workout Frequency */}
+        <Panel glass style={{ padding: 20 }}>
+          <div className="hud" style={{ fontSize: 10, color: 'var(--cyan)', marginBottom: 16 }}>ACTIVITY DISTRIBUTION</div>
+          <div style={{ height: 180, width: '100%', minHeight: 180 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={frequencyData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                <XAxis dataKey="name" stroke="var(--ink-ghost)" fontSize={9} tickMargin={10} />
+                <YAxis fontSize={9} stroke="var(--ink-ghost)" />
+                <Tooltip contentStyle={{ background: 'rgba(10,11,28,0.95)', border: '1px solid var(--line)', borderRadius: 8, fontSize: 10 }} />
+                <Bar dataKey="value" fill="var(--cyan)" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </Panel>
+      </div>
+
+      {/* Metrics Section */}
       <Panel glass style={{ padding: 24, marginTop: 16 }}>
         <div className="hud" style={{ fontSize: 11, letterSpacing: '0.24em', color: 'var(--ink-dim)', marginBottom: 20 }}>
           {fantasy ? 'CHRONICLES OF PROGRESS' : 'METRICS & TRACKING'}
         </div>
         
-        {/* Input Form */}
+        {/* Metric Input */}
         <div style={{ display: 'flex', gap: 12, marginBottom: 24, flexWrap: 'wrap' }}>
           <select 
             value={metricType} 
@@ -146,79 +215,39 @@ export function Dashboard() {
           </Button>
         </div>
 
-        {/* Charts */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
           {/* Weight Chart */}
-          <div style={{ background: 'rgba(0,0,0,0.2)', padding: 16, borderRadius: 12, border: '1px solid var(--line)' }}>
-            <div className="hud" style={{ fontSize: 10, color: 'var(--cyan)', marginBottom: 16 }}>Bodyweight Progression (KG)</div>
-            {weightData.length > 0 ? (
-              <div style={{ height: 200, width: '100%' }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={weightData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                    <XAxis dataKey="dateFormatted" stroke="var(--ink-dim)" fontSize={10} tickMargin={10} />
-                    <YAxis domain={['auto', 'auto']} stroke="var(--ink-dim)" fontSize={10} />
-                    <Tooltip 
-                      contentStyle={{ background: 'rgba(10,11,28,0.9)', border: '1px solid var(--line)', borderRadius: 8, fontSize: 12 }}
-                      itemStyle={{ color: 'var(--cyan)' }}
-                    />
-                    <Line type="monotone" dataKey="value" stroke="var(--cyan)" strokeWidth={2} dot={{ r: 3, fill: 'var(--cyan)' }} activeDot={{ r: 5 }} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            ) : (
-              <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ink-dim)', fontSize: 12 }}>
-                No records yet.
-              </div>
-            )}
-            
-            <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 100, overflowY: 'auto' }} className="no-scrollbar">
-              {weightData.map(m => (
-                <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11, background: 'rgba(255,255,255,0.03)', padding: '6px 10px', borderRadius: 6 }}>
-                  <span style={{ color: 'var(--ink-dim)' }}>{m.dateFormatted}</span>
-                  <span className="mythic" style={{ color: 'var(--cyan)' }}>{m.value} KG</span>
-                  <button onClick={() => deleteMetric(m.id)} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: 10 }}>[X]</button>
-                </div>
-              ))}
+          <div>
+            <div className="hud" style={{ fontSize: 10, color: 'var(--cyan)', marginBottom: 16 }}>Bodyweight (KG)</div>
+            <div style={{ height: 200, minHeight: 200 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={weightData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                  <XAxis dataKey="dateFormatted" stroke="var(--ink-ghost)" fontSize={9} />
+                  <YAxis domain={['auto', 'auto']} stroke="var(--ink-ghost)" fontSize={9} />
+                  <Tooltip contentStyle={{ background: 'rgba(10,11,28,0.95)', border: '1px solid var(--line)', fontSize: 10 }} />
+                  <Line type="monotone" dataKey="value" stroke="var(--cyan)" strokeWidth={2} dot={{ r: 3 }} />
+                </LineChart>
+              </ResponsiveContainer>
             </div>
           </div>
 
-          {/* Kcal Chart */}
-          <div style={{ background: 'rgba(0,0,0,0.2)', padding: 16, borderRadius: 12, border: '1px solid var(--line)' }}>
+          {/* Caloric Intake */}
+          <div>
             <div className="hud" style={{ fontSize: 10, color: 'var(--gold)', marginBottom: 16 }}>Caloric Intake (kcal)</div>
-            {kcalData.length > 0 ? (
-              <div style={{ height: 200, width: '100%' }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={kcalData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                    <XAxis dataKey="dateFormatted" stroke="var(--ink-dim)" fontSize={10} tickMargin={10} />
-                    <YAxis domain={['auto', 'auto']} stroke="var(--ink-dim)" fontSize={10} />
-                    <Tooltip 
-                      contentStyle={{ background: 'rgba(10,11,28,0.9)', border: '1px solid var(--line)', borderRadius: 8, fontSize: 12 }}
-                      itemStyle={{ color: 'var(--gold)' }}
-                    />
-                    <Line type="monotone" dataKey="value" stroke="var(--gold)" strokeWidth={2} dot={{ r: 3, fill: 'var(--gold)' }} activeDot={{ r: 5 }} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            ) : (
-              <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ink-dim)', fontSize: 12 }}>
-                No records yet.
-              </div>
-            )}
-
-            <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 100, overflowY: 'auto' }} className="no-scrollbar">
-              {kcalData.map(m => (
-                <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11, background: 'rgba(255,255,255,0.03)', padding: '6px 10px', borderRadius: 6 }}>
-                  <span style={{ color: 'var(--ink-dim)' }}>{m.dateFormatted}</span>
-                  <span className="mythic" style={{ color: 'var(--gold)' }}>{m.value} KCAL</span>
-                  <button onClick={() => deleteMetric(m.id)} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: 10 }}>[X]</button>
-                </div>
-              ))}
+            <div style={{ height: 200, minHeight: 200 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={kcalData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                  <XAxis dataKey="dateFormatted" stroke="var(--ink-ghost)" fontSize={9} />
+                  <YAxis domain={['auto', 'auto']} stroke="var(--ink-ghost)" fontSize={9} />
+                  <Tooltip contentStyle={{ background: 'rgba(10,11,28,0.95)', border: '1px solid var(--line)', fontSize: 10 }} />
+                  <Line type="monotone" dataKey="value" stroke="var(--gold)" strokeWidth={2} dot={{ r: 3 }} />
+                </LineChart>
+              </ResponsiveContainer>
             </div>
           </div>
         </div>
-
       </Panel>
     </div>
   );

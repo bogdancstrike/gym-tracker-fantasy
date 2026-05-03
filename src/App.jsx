@@ -12,6 +12,7 @@ import { Quests } from './screens/Quests.jsx';
 import { Workout } from './screens/Workout.jsx';
 import { Dungeons } from './screens/Dungeons.jsx';
 import { Inventory } from './screens/Inventory.jsx';
+import { Admin } from './screens/Admin.jsx';
 import { BossIntro } from './cinematics/BossIntro.jsx';
 import { QuestReward } from './cinematics/QuestReward.jsx';
 import { LevelUpCinematic } from './cinematics/LevelUpCinematic.jsx';
@@ -19,6 +20,7 @@ import { SwitchCinematic } from './cinematics/SwitchCinematic.jsx';
 import { AvatarSwitcher } from './avatar/AvatarSwitcher.jsx';
 import { AvatarCreate } from './avatar/AvatarCreate.jsx';
 import { useBreakpoint } from './hooks/useBreakpoint.js';
+import { createSets, parseTrainingPrescription } from './data/workout.js';
 
 import { BossVictory } from './cinematics/BossVictory.jsx';
 
@@ -28,6 +30,7 @@ const SCREEN_MAP = {
   workout: Workout,
   dungeons: Dungeons,
   inventory: Inventory,
+  admin: Admin,
 };
 
 function Overlays({ onWorkout }) {
@@ -58,7 +61,7 @@ function Overlays({ onWorkout }) {
               exercises: bossIntro.challenge.map(c => ({ 
                 id: `ex-${Math.random()}`, 
                 name: c.ex, 
-                sets: Array(c.sets).fill({ target: c.reps, done: false }) 
+                sets: createSets(c.sets, parseTrainingPrescription(c.reps)),
               })) 
             });
             setScreen('workout'); 
@@ -108,7 +111,7 @@ function AppShell() {
 
   const Screen = SCREEN_MAP[screen] || Dashboard;
 
-  const isWidePage = screen === 'home' || screen === 'quests';
+  const isWidePage = screen === 'home' || screen === 'quests' || screen === 'admin';
 
   if (desktop) {
     document.documentElement.setAttribute('data-layout', 'desktop');

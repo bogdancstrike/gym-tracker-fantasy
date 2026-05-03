@@ -15,15 +15,17 @@ export function Sidebar({ collapsed = false, onToggle }) {
   const navItems = fantasy ? [
     { id: 'home',      label: 'Champion', icon: Icon.home },
     { id: 'quests',    label: 'Path',     icon: Icon.scroll },
-    { id: 'workout',   label: 'Train',    icon: Icon.sword,  primary: true },
+    { id: 'workout',   label: 'Train',    icon: Icon.sword },
     { id: 'dungeons',  label: 'Glades',   icon: Icon.gate },
     { id: 'inventory', label: 'Hoard',    icon: Icon.chest },
+    { id: 'admin',     label: 'Admin',    icon: Icon.settings },
   ] : [
     { id: 'home',      label: 'Hunter',   icon: Icon.home },
     { id: 'quests',    label: 'Quests',   icon: Icon.scroll },
-    { id: 'workout',   label: 'Train',    icon: Icon.sword,  primary: true },
+    { id: 'workout',   label: 'Train',    icon: Icon.sword },
     { id: 'dungeons',  label: 'Gates',    icon: Icon.gate },
     { id: 'inventory', label: 'Vault',    icon: Icon.chest },
+    { id: 'admin',     label: 'Admin',    icon: Icon.settings },
   ];
 
   return (
@@ -111,13 +113,20 @@ export function Sidebar({ collapsed = false, onToggle }) {
               className={[
                 'sidebar-nav-item',
                 active ? 'active' : '',
-                item.primary ? 'primary-nav' : '',
               ].filter(Boolean).join(' ')}
               title={collapsed ? item.label : ''}
               style={{
                 justifyContent: collapsed ? 'center' : 'flex-start',
                 padding: collapsed ? '12px 0' : '10px 14px',
+                display: 'flex', alignItems: 'center', gap: 12,
+                width: '100%', border: 'none', background: 'transparent',
+                color: active ? 'var(--cyan)' : 'var(--ink-dim)',
+                cursor: 'pointer', borderRadius: 8,
+                transition: 'all 200ms',
+                fontFamily: 'var(--hud-font)', fontSize: 13, textTransform: 'uppercase', letterSpacing: '0.1em'
               }}
+              onMouseEnter={e => !active && (e.currentTarget.style.background = 'rgba(255,255,255,0.03)')}
+              onMouseLeave={e => !active && (e.currentTarget.style.background = 'transparent')}
             >
               <IconC size={18} />
               {!collapsed && <span>{item.label}</span>}

@@ -1,13 +1,61 @@
 import { createContext, useCallback, useContext, useMemo, useState, useEffect } from 'react';
 import { INITIAL_AVATARS, RACES } from '../data/races.js';
 import { QUEST_POOL } from '../data/quests.js';
-import { LIVE_WORKOUT } from '../data/workout.js';
+import { LIVE_WORKOUT, createWorkoutFromProfile } from '../data/workout.js';
+import { PROGRAMS } from '../data/programs.js';
 import { RANKS, DIFFICULTY_MULTIPLIER, getRankForLevel } from '../data/ranks.js';
 import { INVENTORY, LOOT_POOL } from '../data/inventory.js';
 
 const GameContext = createContext(null);
 
-const STORAGE_KEY = 'ascend_hunters_forge_v1';
+export const STORAGE_KEY = 'ascend_hunters_forge_v1';
+
+function mergePrograms(customPrograms = []) {
+  const merged = {
+    3: [...(PROGRAMS[3] || [])],
+    4: [...(PROGRAMS[4] || [])],
+    5: [...(PROGRAMS[5] || [])],
+  };
+  customPrograms.forEach(program => {
+    const freq = Number(program.frequency || program.freq || program.days?.length || 3);
+    if (!merged[freq]) merged[freq] = [];
+    merged[freq].push(program);
+  });
+  return merged;
+}
+
+function getAvatarProgram(avatar, customPrograms = []) {
+  const freq = avatar?.program?.freq || 4;
+  const allPrograms = mergePrograms(customPrograms);
+  const programs = allPrograms[freq] || allPrograms[4] || [];
+  return programs.find(p => p.id === avatar?.program?.id) || programs[0];
+}
+
+function normalizeAvatar(avatar, legacyWorkout, customPrograms = []) {
+  const program = getAvatarProgram(avatar, customPrograms);
+  const profile = avatar.profile || {
+    sex: 'not-specified',
+    bodyweightKg: '',
+    experience: 'beginner',
+    goal: 'strength',
+    splitStyle: program?.name || 'Upper / Lower',
+    startingLifts: {
+      bench: 35,
+      squat: 45,
+      deadlift: 60,
+      overhead: 22.5,
+    },
+  };
+
+  return {
+    ...avatar,
+    profile,
+    equippedIds: avatar.equippedIds || [],
+    history: avatar.history || [],
+    metrics: avatar.metrics || [],
+    workout: avatar.workout || legacyWorkout || createWorkoutFromProfile(profile, program),
+  };
+}
 
 function getRandomQuests(count = 5) {
   const shuffled = [...QUEST_POOL].sort(() => 0.5 - Math.random());
@@ -17,14 +65,14 @@ function getRandomQuests(count = 5) {
 export function GameProvider({ children }) {
   // Load initial state from Local Storage
   const [isLoaded, setIsLoaded] = useState(false);
-  const [avatars, setAvatars] = useState(INITIAL_AVATARS);
+  const [avatars, setAvatars] = useState(INITIAL_AVATARS.map(av => normalizeAvatar(av)));
   const [activeId, setActiveId] = useState(INITIAL_AVATARS[0].id);
   const [quests, setQuests] = useState([]);
-  const [workout, setWorkout] = useState(LIVE_WORKOUT);
   const [difficulty, setDifficulty] = useState('normal');
   const [screen, setScreen] = useState('home');
   const [inventory, setInventory] = useState(INVENTORY);
   const [lastQuestRefresh, setLastQuestRefresh] = useState(null);
+  const [customPrograms, setCustomPrograms] = useState([]);
 
   // Modals & overlays
   const [bossIntro, setBossIntro] = useState(null);
@@ -42,10 +90,12 @@ export function GameProvider({ children }) {
     if (saved) {
       try {
         const data = JSON.parse(saved);
-        setAvatars(data.avatars || INITIAL_AVATARS);
-        setActiveId(data.activeId || INITIAL_AVATARS[0].id);
+        const savedCustomPrograms = data.customPrograms || [];
+        setCustomPrograms(savedCustomPrograms);
+        const savedAvatars = data.avatars || INITIAL_AVATARS;
+        setAvatars(savedAvatars.map(av => normalizeAvatar(av, data.workout, savedCustomPrograms)));
+        setActiveId(data.activeId || savedAvatars[0]?.id || INITIAL_AVATARS[0].id);
         setQuests(data.quests || []);
-        setWorkout(data.workout || LIVE_WORKOUT);
         setDifficulty(data.difficulty || 'normal');
         setInventory(data.inventory || INVENTORY);
         setLastQuestRefresh(data.lastQuestRefresh);
@@ -60,10 +110,11 @@ export function GameProvider({ children }) {
   useEffect(() => {
     if (!isLoaded) return;
     const data = {
-      avatars, activeId, quests, workout, difficulty, inventory, lastQuestRefresh
+      avatars, activeId, quests, difficulty, inventory, lastQuestRefresh, customPrograms,
+      schemaVersion: 2,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  }, [avatars, activeId, quests, workout, difficulty, inventory, lastQuestRefresh, isLoaded]);
+  }, [avatars, activeId, quests, difficulty, inventory, lastQuestRefresh, customPrograms, isLoaded]);
 
   // Daily Refresh Logic
   useEffect(() => {
@@ -78,9 +129,19 @@ export function GameProvider({ children }) {
 
   const activeAvatar = avatars.find(a => a.id === activeId) || avatars[0];
   const race = RACES.find(r => r.id === activeAvatar.race);
+  const workout = activeAvatar?.workout || LIVE_WORKOUT;
+  const availablePrograms = useMemo(() => mergePrograms(customPrograms), [customPrograms]);
 
   const updateActive = useCallback((patch) => {
     setAvatars(as => as.map(a => a.id === activeId ? { ...a, ...patch } : a));
+  }, [activeId]);
+
+  const setWorkout = useCallback((nextWorkout) => {
+    setAvatars(as => as.map(a => {
+      if (a.id !== activeId) return a;
+      const workoutValue = typeof nextWorkout === 'function' ? nextWorkout(a.workout || LIVE_WORKOUT) : nextWorkout;
+      return { ...a, workout: workoutValue };
+    }));
   }, [activeId]);
 
   const addMetric = useCallback((type, value) => {
@@ -183,7 +244,14 @@ export function GameProvider({ children }) {
     const amount = isBoss ? 450 : 150;
     const today = new Date().toISOString();
     
-    const workoutEntry = { id: Date.now(), type: isBoss ? 'boss' : 'workout', date: today, name: workout.name };
+    const workoutEntry = {
+      id: Date.now(),
+      type: isBoss ? 'boss' : 'workout',
+      date: today,
+      name: workout.name,
+      program: activeAvatar.program,
+      exercises: workout.exercises,
+    };
     const history = [...(activeAvatar.history || []), workoutEntry];
 
     if (isBoss) {
@@ -216,12 +284,54 @@ export function GameProvider({ children }) {
   }, [activeAvatar, activeId, avatars]);
 
   const createAvatar = useCallback((newAv) => {
-    const avWithEquip = { ...newAv, equippedIds: [], rank: getRankForLevel(newAv.level), history: [] };
+    const program = getAvatarProgram(newAv, customPrograms);
+    const workout = createWorkoutFromProfile(newAv.profile, program);
+    const avWithEquip = {
+      ...newAv,
+      equippedIds: [],
+      rank: getRankForLevel(newAv.level),
+      history: [],
+      metrics: [],
+      workout,
+    };
     setAvatars(as => [...as, avWithEquip]);
     setActiveId(newAv.id);
     setCreateOpen(false);
     setScreen('home');
+  }, [customPrograms]);
+
+  const saveCustomProgram = useCallback((program) => {
+    const freq = Number(program.frequency || program.freq || program.days?.length || 3);
+    const normalized = {
+      ...program,
+      frequency: freq,
+      custom: true,
+      id: program.id || `custom-${Date.now()}`,
+      days: (program.days || []).slice(0, freq),
+    };
+    setCustomPrograms(programs => {
+      const exists = programs.some(p => p.id === normalized.id);
+      return exists
+        ? programs.map(p => p.id === normalized.id ? normalized : p)
+        : [...programs, normalized];
+    });
   }, []);
+
+  const deleteCustomProgram = useCallback((id) => {
+    setCustomPrograms(programs => programs.filter(program => program.id !== id));
+  }, []);
+
+  const deleteAvatar = useCallback((id) => {
+    setAvatars(as => {
+      if (as.length <= 1) return as;
+      const remaining = as.filter(a => a.id !== id);
+      if (id === activeId && remaining[0]) {
+        setActiveId(remaining[0].id);
+        setScreen('home');
+      }
+      return remaining;
+    });
+  }, [activeId]);
 
   const value = useMemo(() => ({
     avatars, activeAvatar, race, activeId, effectiveStats,
@@ -229,6 +339,7 @@ export function GameProvider({ children }) {
     difficulty, setDifficulty,
     screen, setScreen,
     inventory, toggleEquip,
+    customPrograms, availablePrograms, saveCustomProgram, deleteCustomProgram,
     bossIntro, setBossIntro,
     bossVictory, setBossVictory,
     questReward, setQuestReward,
@@ -237,13 +348,14 @@ export function GameProvider({ children }) {
     createOpen, setCreateOpen,
     switchCine, setSwitchCine,
     lootDrop, setLootDrop,
-    completeQuest, gainXp, claimWorkout, switchAvatar, createAvatar, addMetric, updateActive,
+    completeQuest, gainXp, claimWorkout, switchAvatar, createAvatar, deleteAvatar, addMetric, updateActive,
   }), [
     avatars, activeAvatar, race, activeId, effectiveStats,
     quests, workout, difficulty, screen,
     inventory, toggleEquip,
+    customPrograms, availablePrograms, saveCustomProgram, deleteCustomProgram,
     bossIntro, bossVictory, questReward, levelUp, switcherOpen, createOpen, switchCine, lootDrop,
-    completeQuest, gainXp, claimWorkout, switchAvatar, createAvatar, addMetric, updateActive,
+    completeQuest, gainXp, claimWorkout, switchAvatar, createAvatar, deleteAvatar, addMetric, updateActive,
   ]);
 
   if (!isLoaded) return null; // Prevent hydration mismatch or flash of empty state

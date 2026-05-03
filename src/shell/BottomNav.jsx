@@ -6,15 +6,17 @@ export function BottomNav({ screen, onNav }) {
   const items = fantasy ? [
     { id: 'home',      label: 'Champion', icon: Icon.home },
     { id: 'quests',    label: 'Path',     icon: Icon.scroll },
-    { id: 'workout',   label: 'Forge',    icon: Icon.sword,  primary: true },
+    { id: 'workout',   label: 'Train',    icon: Icon.sword },
     { id: 'dungeons',  label: 'Glades',   icon: Icon.gate },
     { id: 'inventory', label: 'Hoard',    icon: Icon.chest },
+    { id: 'admin',     label: 'Admin',    icon: Icon.settings },
   ] : [
     { id: 'home',      label: 'Hunter', icon: Icon.home },
     { id: 'quests',    label: 'Quests', icon: Icon.scroll },
-    { id: 'workout',   label: 'Train',  icon: Icon.sword,  primary: true },
+    { id: 'workout',   label: 'Train',  icon: Icon.sword },
     { id: 'dungeons',  label: 'Gates',  icon: Icon.gate },
     { id: 'inventory', label: 'Vault',  icon: Icon.chest },
+    { id: 'admin',     label: 'Admin',  icon: Icon.settings },
   ];
   return (
     <div style={{
@@ -23,7 +25,7 @@ export function BottomNav({ screen, onNav }) {
       background: 'linear-gradient(180deg, transparent, rgba(5,5,13,0.9) 30%)',
     }}>
       <div style={{
-        display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 4,
+        display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 4,
         background: 'rgba(13,15,30,0.85)',
         border: '1px solid var(--line)',
         borderRadius: 20, padding: 6,
@@ -41,23 +43,13 @@ export function BottomNav({ screen, onNav }) {
               color: active ? 'var(--cyan)' : 'var(--ink-dim)',
               position: 'relative',
             }}>
-              {it.primary && (
-                <div style={{
-                  position: 'absolute', top: 4, width: 38, height: 38, borderRadius: 12,
-                  background: active
-                    ? 'linear-gradient(180deg, color-mix(in oklab, var(--cyan) 40%, transparent), color-mix(in oklab, var(--violet) 40%, transparent))'
-                    : 'color-mix(in oklab, var(--cyan) 8%, transparent)',
-                  border: active ? '1px solid var(--cyan)' : '1px solid var(--line)',
-                  zIndex: 0,
-                }} />
-              )}
               <IconC size={18} style={{ position: 'relative', zIndex: 1 }} />
               <span style={{
                 fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase',
                 fontFamily: 'JetBrains Mono, monospace',
                 position: 'relative', zIndex: 1,
               }}>{it.label}</span>
-              {active && !it.primary && (
+              {active && (
                 <div className="nav-dot" style={{
                   width: 4, height: 4, borderRadius: '50%', background: 'var(--cyan)',
                   boxShadow: '0 0 8px var(--cyan)',

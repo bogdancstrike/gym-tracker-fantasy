@@ -6,8 +6,17 @@ import { RaceGlyph } from '../characters/RaceGlyph.jsx';
 import { RACES } from '../data/races.js';
 
 export function AvatarSwitcher({ onClose, onCreateNew }) {
-  const { avatars, activeId, switchAvatar } = useGame();
+  const { avatars, activeId, switchAvatar, deleteAvatar } = useGame();
   const { fantasy } = useTheme();
+
+  const handleDelete = (avatar) => {
+    if (avatars.length <= 1) {
+      window.alert('Create another character before deleting this one.');
+      return;
+    }
+    const confirmed = window.confirm(`Delete ${avatar.name}? All progress for this character will be lost.`);
+    if (confirmed) deleteAvatar(avatar.id);
+  };
 
   return (
     <div
@@ -75,22 +84,41 @@ export function AvatarSwitcher({ onClose, onCreateNew }) {
                   </div>
                 </div>
                 <RankEmblem rank={av.rank} size={36} />
-                {isActive ? (
-                  <div className="hud" style={{
-                    fontSize: 9, letterSpacing: '0.22em',
-                    color: 'var(--cyan)', whiteSpace: 'nowrap',
-                  }}>
-                    {fantasy ? 'AWAKENED' : 'ACTIVE'}
-                  </div>
-                ) : (
-                  <Button
-                    variant="ghost"
-                    style={{ padding: '6px 14px', fontSize: 11, whiteSpace: 'nowrap' }}
-                    onClick={() => switchAvatar(av.id)}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                  {isActive ? (
+                    <div className="hud" style={{
+                      fontSize: 9, letterSpacing: '0.22em',
+                      color: 'var(--cyan)', whiteSpace: 'nowrap',
+                    }}>
+                      {fantasy ? 'AWAKENED' : 'ACTIVE'}
+                    </div>
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      style={{ padding: '6px 14px', fontSize: 11, whiteSpace: 'nowrap' }}
+                      onClick={() => switchAvatar(av.id)}
+                    >
+                      {fantasy ? 'Awaken' : 'Switch'}
+                    </Button>
+                  )}
+                  <button
+                    onClick={() => handleDelete(av)}
+                    title="Delete character"
+                    style={{
+                      width: 30, height: 30, borderRadius: 8,
+                      border: '1px solid color-mix(in oklab, var(--danger) 45%, transparent)',
+                      background: 'rgba(80,20,20,0.25)',
+                      color: 'var(--danger)',
+                      cursor: 'pointer',
+                      display: 'grid',
+                      placeItems: 'center',
+                      fontSize: 18,
+                      lineHeight: 1,
+                    }}
                   >
-                    {fantasy ? 'Awaken' : 'Switch'}
-                  </Button>
-                )}
+                    ×
+                  </button>
+                </div>
               </div>
             );
           })}

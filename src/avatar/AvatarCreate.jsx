@@ -11,11 +11,11 @@ import { PROGRAMS } from '../data/programs.js';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { getRankForLevel } from '../data/ranks.js';
 
-const STEPS = ['race', 'codex', 'name', 'program', 'confirm'];
+const STEPS = ['race', 'codex', 'name', 'profile', 'program', 'confirm'];
 
 const STEP_LABELS = {
-  cyber: { race: 'Select Class', codex: 'Class Codex', name: 'Designate Vessel', program: 'Training Protocol', confirm: 'Initialize' },
-  fantasy: { race: 'Choose Your Nature', codex: 'The Codex Speaks', name: 'Name Your Champion', program: 'Walk a Path', confirm: 'Awaken' },
+  cyber: { race: 'Select Class', codex: 'Class Codex', name: 'Designate Vessel', profile: 'Body Baseline', program: 'Training Protocol', confirm: 'Initialize' },
+  fantasy: { race: 'Choose Your Nature', codex: 'The Codex Speaks', name: 'Name Your Champion', profile: 'Mortal Frame', program: 'Walk a Path', confirm: 'Awaken' },
 };
 
 export function AvatarCreate({ onClose, onCreated }) {
@@ -27,6 +27,18 @@ export function AvatarCreate({ onClose, onCreated }) {
   const [name, setName] = useState('');
   const [freq, setFreq] = useState(4);
   const [programId, setProgramId] = useState(PROGRAMS[4][0].id);
+  const [profile, setProfile] = useState({
+    sex: 'female',
+    bodyweightKg: 65,
+    experience: 'beginner',
+    goal: 'strength',
+    startingLifts: {
+      bench: 35,
+      squat: 45,
+      deadlift: 60,
+      overhead: 22.5,
+    },
+  });
 
   const programs = PROGRAMS[freq] || [];
   const selectedProgram = programs.find(p => p.id === programId) || programs[0];
@@ -34,6 +46,13 @@ export function AvatarCreate({ onClose, onCreated }) {
   const canAdvance = () => {
     if (STEPS[step] === 'race') return !!selectedRace && !selectedRace.locked;
     if (STEPS[step] === 'name') return name.trim().length >= 2;
+    if (STEPS[step] === 'profile') {
+      return Number(profile.bodyweightKg) > 0
+        && Number(profile.startingLifts.bench) > 0
+        && Number(profile.startingLifts.squat) > 0
+        && Number(profile.startingLifts.deadlift) > 0
+        && Number(profile.startingLifts.overhead) > 0;
+    }
     return true;
   };
 
@@ -55,6 +74,14 @@ export function AvatarCreate({ onClose, onCreated }) {
       streak: 0,
       totalXpToday: 0,
       program: { freq, id: prog.id },
+      profile: {
+        ...profile,
+        bodyweightKg: Number(profile.bodyweightKg),
+        splitStyle: prog.name,
+        startingLifts: Object.fromEntries(
+          Object.entries(profile.startingLifts).map(([key, value]) => [key, Number(value)])
+        ),
+      },
       active: false,
       equippedIds: [],
     });
@@ -140,6 +167,9 @@ export function AvatarCreate({ onClose, onCreated }) {
                 {STEPS[step] === 'name' && (
                   <NameStep name={name} setName={setName} race={selectedRace} fantasy={fantasy} />
                 )}
+                {STEPS[step] === 'profile' && (
+                  <ProfileStep profile={profile} setProfile={setProfile} fantasy={fantasy} />
+                )}
                 {STEPS[step] === 'program' && (
                   <ProgramStep
                     freq={freq} setFreq={f => { setFreq(f); setProgramId(PROGRAMS[f][0].id); }}
@@ -150,7 +180,7 @@ export function AvatarCreate({ onClose, onCreated }) {
                 {STEPS[step] === 'confirm' && (
                   <ConfirmStep
                     name={name} race={selectedRace}
-                    program={selectedProgram} freq={freq} fantasy={fantasy}
+                    program={selectedProgram} freq={freq} profile={profile} fantasy={fantasy}
                   />
                 )}
               </div>
@@ -548,6 +578,77 @@ function NameStep({ name, setName, race, fantasy }) {
   );
 }
 
+function ProfileStep({ profile, setProfile, fantasy }) {
+  const update = (patch) => setProfile(prev => ({ ...prev, ...patch }));
+  const updateLift = (key, value) => setProfile(prev => ({
+    ...prev,
+    startingLifts: { ...prev.startingLifts, [key]: value },
+  }));
+
+  return (
+    <div>
+      <div style={{ fontSize: 13, color: 'var(--ink-dim)', lineHeight: 1.6, marginBottom: 18 }}>
+        {fantasy
+          ? 'Set the body you are actually training. The first path will scale from these numbers.'
+          : 'Set realistic training baselines. Workouts will be generated from this profile.'}
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
+        <Field label="Profile">
+          <select value={profile.sex} onChange={e => update({ sex: e.target.value })} style={fieldStyle}>
+            <option value="female">Female</option>
+            <option value="male">Male</option>
+            <option value="nonbinary">Non-binary</option>
+            <option value="not-specified">Prefer not to say</option>
+          </select>
+        </Field>
+        <Field label="Bodyweight KG">
+          <input type="number" min="30" max="250" step="0.1" value={profile.bodyweightKg} onChange={e => update({ bodyweightKg: e.target.value })} style={fieldStyle} />
+        </Field>
+        <Field label="Experience">
+          <select value={profile.experience} onChange={e => update({ experience: e.target.value })} style={fieldStyle}>
+            <option value="beginner">Beginner</option>
+            <option value="intermediate">Intermediate</option>
+            <option value="advanced">Advanced</option>
+          </select>
+        </Field>
+        <Field label="Goal">
+          <select value={profile.goal} onChange={e => update({ goal: e.target.value })} style={fieldStyle}>
+            <option value="strength">Strength</option>
+            <option value="hypertrophy">Hypertrophy</option>
+            <option value="fat-loss">Fat loss</option>
+            <option value="conditioning">Conditioning</option>
+          </select>
+        </Field>
+      </div>
+
+      <div className="hud" style={{ fontSize: 10, letterSpacing: '0.22em', color: 'var(--cyan)', margin: '22px 0 12px' }}>
+        STARTING LIFTS · KG
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 10 }}>
+        {[
+          ['bench', 'Chest / Bench'],
+          ['squat', 'Squat'],
+          ['deadlift', 'Deadlift'],
+          ['overhead', 'Overhead'],
+        ].map(([key, label]) => (
+          <Field key={key} label={label}>
+            <input
+              type="number"
+              min="2.5"
+              max="400"
+              step="2.5"
+              value={profile.startingLifts[key]}
+              onChange={e => updateLift(key, e.target.value)}
+              style={fieldStyle}
+            />
+          </Field>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function ProgramStep({ freq, setFreq, programId, setProgramId, programs, fantasy }) {
   return (
     <div>
@@ -604,7 +705,7 @@ function ProgramStep({ freq, setFreq, programId, setProgramId, programs, fantasy
   );
 }
 
-function ConfirmStep({ name, race, program, freq, fantasy }) {
+function ConfirmStep({ name, race, program, freq, profile, fantasy }) {
   return (
     <div style={{ textAlign: 'center' }}>
       <div style={{ margin: '8px 0 24px' }}>
@@ -626,7 +727,9 @@ function ConfirmStep({ name, race, program, freq, fantasy }) {
       }}>
         <Row label={fantasy ? 'Nature' : 'Class'} value={race.name} />
         <Row label={fantasy ? 'Path' : 'Program'} value={program?.name} />
-        <Row label={fantasy ? 'Cycle' : 'Frequency'} value={`${freq}× per week`} last />
+        <Row label={fantasy ? 'Cycle' : 'Frequency'} value={`${freq}× per week`} />
+        <Row label="Bodyweight" value={`${profile.bodyweightKg}kg`} />
+        <Row label="Bench baseline" value={`${profile.startingLifts.bench}kg`} last />
       </div>
       <div style={{
         marginTop: 12, fontSize: 12, color: 'var(--ink-dim)',
@@ -639,6 +742,28 @@ function ConfirmStep({ name, race, program, freq, fantasy }) {
     </div>
   );
 }
+
+function Field({ label, children }) {
+  return (
+    <label style={{ display: 'grid', gap: 7 }}>
+      <span className="hud" style={{ fontSize: 9, letterSpacing: '0.16em', color: 'var(--ink-dim)' }}>{label}</span>
+      {children}
+    </label>
+  );
+}
+
+const fieldStyle = {
+  width: '100%',
+  boxSizing: 'border-box',
+  padding: '12px 12px',
+  background: 'rgba(13,15,30,0.7)',
+  border: '1px solid var(--line)',
+  borderRadius: 10,
+  color: 'var(--ink)',
+  fontFamily: 'var(--body-font)',
+  fontSize: 14,
+  outline: 'none',
+};
 
 function Row({ label, value, last }) {
   return (

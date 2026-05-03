@@ -33,11 +33,19 @@ function applyTheme(themeKey) {
 }
 
 const ThemeContext = createContext(null);
+const THEME_STORAGE_KEY = 'ascend_theme_v1';
 
 export function ThemeProvider({ children, initial = 'verdant-grove' }) {
-  const [themeKey, setThemeKey] = useState(initial);
+  const [themeKey, setThemeKeyState] = useState(() => localStorage.getItem(THEME_STORAGE_KEY) || initial);
 
-  useEffect(() => { applyTheme(themeKey); }, [themeKey]);
+  useEffect(() => {
+    applyTheme(themeKey);
+    localStorage.setItem(THEME_STORAGE_KEY, themeKey);
+  }, [themeKey]);
+
+  const setThemeKey = useCallback((key) => {
+    setThemeKeyState(THEMES[key] ? key : initial);
+  }, [initial]);
 
   const value = useMemo(() => {
     const theme = THEMES[themeKey];
