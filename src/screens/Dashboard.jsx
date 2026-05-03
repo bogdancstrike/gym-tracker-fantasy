@@ -394,10 +394,9 @@ export function Dashboard() {
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
-          {/* Weight Chart */}
-          <div>
-            <div className="hud" style={{ fontSize: 10, color: 'var(--cyan)', marginBottom: 16 }}>Bodyweight (KG)</div>
-            <div style={{ height: 200, minHeight: 200 }}>
+          <ChartBox id="bodyweight" title="Bodyweight (KG)" color="var(--cyan)" height={200} maximizedChart={maximizedChart} setMaximizedChart={setMaximizedChart} compact>
+            {chartHeight => (
+            <div style={{ height: chartHeight, minHeight: chartHeight }}>
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={weightData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
@@ -408,12 +407,12 @@ export function Dashboard() {
                 </LineChart>
               </ResponsiveContainer>
             </div>
-          </div>
+            )}
+          </ChartBox>
 
-          {/* Caloric Intake */}
-          <div>
-            <div className="hud" style={{ fontSize: 10, color: 'var(--gold)', marginBottom: 16 }}>Caloric Intake (kcal)</div>
-            <div style={{ height: 200, minHeight: 200 }}>
+          <ChartBox id="calories" title="Caloric Intake (kcal)" color="var(--gold)" height={200} maximizedChart={maximizedChart} setMaximizedChart={setMaximizedChart} compact>
+            {chartHeight => (
+            <div style={{ height: chartHeight, minHeight: chartHeight }}>
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={kcalData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
@@ -424,12 +423,13 @@ export function Dashboard() {
                 </LineChart>
               </ResponsiveContainer>
             </div>
-          </div>
+            )}
+          </ChartBox>
 
           {liftMetricData.map(metric => (
-            <div key={metric.type}>
-              <div className="hud" style={{ fontSize: 10, color: metric.color, marginBottom: 16 }}>{metric.label} (KG)</div>
-              <div style={{ height: 200, minHeight: 200 }}>
+            <ChartBox key={metric.type} id={`metric-${metric.type}`} title={`${metric.label} (KG)`} color={metric.color} height={200} maximizedChart={maximizedChart} setMaximizedChart={setMaximizedChart} compact>
+              {chartHeight => (
+              <div style={{ height: chartHeight, minHeight: chartHeight }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={metric.data}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
@@ -440,7 +440,8 @@ export function Dashboard() {
                   </LineChart>
                 </ResponsiveContainer>
               </div>
-            </div>
+              )}
+            </ChartBox>
           ))}
         </div>
       </Panel>
@@ -461,6 +462,52 @@ function StatTile({ label, value, icon: IconC, color }) {
       </div>
       <div className="mythic" style={{ fontSize: 24, fontWeight: 700, marginTop: 6, color: 'var(--ink)' }}>
         {value}
+      </div>
+    </div>
+  );
+}
+
+function ChartBox({ id, title, color, height = 220, maximizedChart, setMaximizedChart, children, compact = false }) {
+  const maximized = maximizedChart === id;
+  const chartHeight = maximized ? 'calc(100dvh - 180px)' : height;
+
+  return (
+    <div
+      className={maximized ? 'glass-fantasy' : undefined}
+      style={{
+        padding: compact ? 0 : 20,
+        borderRadius: maximized ? 14 : compact ? 0 : 12,
+        border: maximized ? '1px solid var(--line)' : compact ? 'none' : '1px solid var(--line)',
+        background: maximized ? 'rgba(8,8,18,0.96)' : compact ? 'transparent' : 'rgba(13,15,30,0.35)',
+        position: maximized ? 'fixed' : 'relative',
+        inset: maximized ? 18 : 'auto',
+        zIndex: maximized ? 80 : 'auto',
+        boxShadow: maximized ? '0 24px 80px rgba(0,0,0,0.55)' : 'none',
+        backdropFilter: maximized ? 'blur(24px)' : undefined,
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+        <div className="hud" style={{ fontSize: 10, color, letterSpacing: '0.16em' }}>{title}</div>
+        <button
+          type="button"
+          onClick={() => setMaximizedChart(maximized ? null : id)}
+          style={{
+            border: '1px solid var(--line)',
+            background: 'rgba(13,15,30,0.55)',
+            color: maximized ? 'var(--gold)' : 'var(--ink-dim)',
+            borderRadius: 8,
+            padding: '7px 10px',
+            cursor: 'pointer',
+            fontSize: 11,
+          }}
+        >
+          {maximized ? 'Minimize' : 'Maximize'}
+        </button>
+      </div>
+      <div style={{ flex: maximized ? 1 : 'initial', minHeight: maximized ? 0 : undefined }}>
+        {children(chartHeight)}
       </div>
     </div>
   );

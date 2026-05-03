@@ -26,3 +26,18 @@ export const LOOT_POOL = [
   { name: 'Void-Touched Shard', tier: 'epic', slot: 'rune', stats: { INT: 4 } },
   { name: 'Monarch\'s Mantle', tier: 'legendary', slot: 'chest', stats: { VIT: 6, STR: 3, AGI: 2 } },
 ];
+
+export const TIER_VALUE = {
+  common: { salvage: 10, buy: 35 },
+  rare: { salvage: 35, buy: 110 },
+  epic: { salvage: 90, buy: 280 },
+  legendary: { salvage: 220, buy: 700 },
+};
+
+export function itemSalvageValue(item) {
+  return TIER_VALUE[item?.tier]?.salvage || 10;
+}
+
+export function itemBuyValue(item) {
+  return TIER_VALUE[item?.tier]?.buy || 35;
+}

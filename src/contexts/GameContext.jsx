@@ -4,7 +4,7 @@ import { QUEST_POOL } from '../data/quests.js';
 import { LIVE_WORKOUT, createWorkoutFromProfile } from '../data/workout.js';
 import { PROGRAMS } from '../data/programs.js';
 import { RANKS, DIFFICULTY_MULTIPLIER, getRankForLevel } from '../data/ranks.js';
-import { INVENTORY, LOOT_POOL } from '../data/inventory.js';
+import { INVENTORY, LOOT_POOL, itemBuyValue, itemSalvageValue } from '../data/inventory.js';
 import { buildRecordsFromHistory } from '../data/trainingProgress.js';
 
 const GameContext = createContext(null);
@@ -84,6 +84,17 @@ function getRandomQuests(count = 5) {
   return shuffled.slice(0, count).map(q => ({ ...q, done: false }));
 }
 
+function createShopItems(count = 4) {
+  return [...LOOT_POOL]
+    .sort(() => 0.5 - Math.random())
+    .slice(0, count)
+    .map((item, index) => ({
+      ...item,
+      id: `shop-${Date.now()}-${index}-${Math.floor(Math.random() * 1000)}`,
+      price: itemBuyValue(item),
+    }));
+}
+
 export function GameProvider({ children }) {
   // Load initial state from Local Storage
   const [isLoaded, setIsLoaded] = useState(false);
@@ -94,6 +105,8 @@ export function GameProvider({ children }) {
   const [screen, setScreen] = useState('home');
   const [selectedExercise, setSelectedExercise] = useState(null);
   const [inventory, setInventory] = useState(INVENTORY);
+  const [coins, setCoins] = useState(120);
+  const [shopItems, setShopItems] = useState(() => createShopItems());
   const [lastQuestRefresh, setLastQuestRefresh] = useState(null);
   const [customPrograms, setCustomPrograms] = useState([]);
 
@@ -121,6 +134,8 @@ export function GameProvider({ children }) {
         setQuests(data.quests || []);
         setDifficulty(data.difficulty || 'normal');
         setInventory(data.inventory || INVENTORY);
+        setCoins(Number(data.coins ?? 120));
+        setShopItems(data.shopItems?.length ? data.shopItems : createShopItems());
         setLastQuestRefresh(data.lastQuestRefresh);
       } catch (e) {
         console.error("Failed to load game state", e);
@@ -133,11 +148,11 @@ export function GameProvider({ children }) {
   useEffect(() => {
     if (!isLoaded) return;
     const data = {
-      avatars, activeId, quests, difficulty, inventory, lastQuestRefresh, customPrograms,
+      avatars, activeId, quests, difficulty, inventory, coins, shopItems, lastQuestRefresh, customPrograms,
       schemaVersion: 2,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  }, [avatars, activeId, quests, difficulty, inventory, lastQuestRefresh, customPrograms, isLoaded]);
+  }, [avatars, activeId, quests, difficulty, inventory, coins, shopItems, lastQuestRefresh, customPrograms, isLoaded]);
 
   // Daily Refresh Logic
   useEffect(() => {
@@ -227,6 +242,36 @@ export function GameProvider({ children }) {
     };
     setInventory(prev => [...prev, newItem]);
     return newItem;
+  }, []);
+
+  const salvageItem = useCallback((itemId) => {
+    const item = inventory.find(it => it.id === itemId);
+    if (!item) return;
+    const value = itemSalvageValue(item);
+    setInventory(items => items.filter(it => it.id !== itemId));
+    setCoins(current => current + value);
+    setAvatars(as => as.map(a => ({
+      ...a,
+      equippedIds: (a.equippedIds || []).filter(id => id !== itemId),
+    })));
+  }, [inventory]);
+
+  const buyShopItem = useCallback((itemId) => {
+    const item = shopItems.find(it => it.id === itemId);
+    if (!item || coins < item.price) return;
+    const purchased = {
+      ...item,
+      id: `loot-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      price: undefined,
+      equipped: false,
+    };
+    setCoins(current => current - item.price);
+    setInventory(items => [...items, purchased]);
+    setShopItems(items => items.filter(it => it.id !== itemId));
+  }, [coins, shopItems]);
+
+  const refreshShop = useCallback(() => {
+    setShopItems(createShopItems());
   }, []);
 
   const completeQuest = useCallback((id) => {
@@ -411,6 +456,8 @@ export function GameProvider({ children }) {
     setQuests(data.quests || []);
     setDifficulty(data.difficulty || 'normal');
     setInventory(data.inventory || INVENTORY);
+    setCoins(Number(data.coins ?? 120));
+    setShopItems(data.shopItems?.length ? data.shopItems : createShopItems());
     setLastQuestRefresh(data.lastQuestRefresh || null);
   }, []);
 
@@ -419,7 +466,7 @@ export function GameProvider({ children }) {
     quests, workout, setWorkout,
     difficulty, setDifficulty,
     screen, setScreen, selectedExercise, setSelectedExercise,
-    inventory, toggleEquip,
+    inventory, toggleEquip, coins, shopItems, salvageItem, buyShopItem, refreshShop,
     customPrograms, availablePrograms, saveCustomProgram, deleteCustomProgram, importSaveData,
     bossIntro, setBossIntro,
     bossVictory, setBossVictory,
@@ -433,7 +480,7 @@ export function GameProvider({ children }) {
   }), [
     avatars, activeAvatar, race, activeId, effectiveStats,
     quests, workout, difficulty, screen, selectedExercise,
-    inventory, toggleEquip,
+    inventory, toggleEquip, coins, shopItems, salvageItem, buyShopItem, refreshShop,
     customPrograms, availablePrograms, saveCustomProgram, deleteCustomProgram, importSaveData,
     bossIntro, bossVictory, questReward, levelUp, switcherOpen, createOpen, switchCine, lootDrop,
     completeQuest, gainXp, awardRecordXp, claimWorkout, switchAvatar, createAvatar, deleteAvatar, addMetric, updateActive, patchActive,

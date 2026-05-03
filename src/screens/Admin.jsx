@@ -35,6 +35,8 @@ const SAVED_FIELDS = [
   'quests',
   'difficulty',
   'inventory',
+  'coins',
+  'shopItems',
   'lastQuestRefresh',
   'schemaVersion',
   'theme: ascend_theme_v1',
@@ -347,6 +349,7 @@ function ProgramDay({ day, dayIndex }) {
 }
 
 function ProgramFlowChart({ programs, frequency }) {
+  const [hoveredNode, setHoveredNode] = useState(null);
   const chart = buildProgramSankey(programs);
   const width = 1180;
   const height = Math.max(520, Math.max(chart.programs.length, chart.days.length, chart.exercises.length) * 34 + 140);
@@ -358,6 +361,14 @@ function ProgramFlowChart({ programs, frequency }) {
   const colors = ['#22d3ee', '#facc15', '#a78bfa', '#fb7185', '#34d399', '#f59e0b', '#60a5fa'];
   const maxValue = Math.max(1, ...chart.links.map(link => link.value));
   const nodeMeta = new Map();
+  const connectedNodes = new Set();
+  if (hoveredNode) {
+    connectedNodes.add(hoveredNode);
+    chart.links.forEach(link => {
+      if (link.source === hoveredNode) connectedNodes.add(link.target);
+      if (link.target === hoveredNode) connectedNodes.add(link.source);
+    });
+  }
 
   const positionNodes = (nodes, column, top = 112) => {
     const gap = Math.max(24, Math.min(42, (height - top - 44) / Math.max(1, nodes.length)));
@@ -417,14 +428,15 @@ function ProgramFlowChart({ programs, frequency }) {
           if (!source || !target) return null;
           const strokeWidth = 2 + (link.value / maxValue) * 18;
           const color = source.color;
+          const active = !hoveredNode || link.source === hoveredNode || link.target === hoveredNode;
           return (
             <g key={`${link.source}-${link.target}-${index}`}>
-              <title>{source.label} -> {target.label}: {link.value} reps</title>
+              <title>{`${source.label} -> ${target.label}: ${link.value} reps`}</title>
               <path
                 d={`M ${source.x + source.width} ${source.y + 12} C ${source.x + source.width + 115} ${source.y + 12}, ${target.x - 115} ${target.y + 12}, ${target.x} ${target.y + 12}`}
                 stroke={color}
                 strokeWidth={strokeWidth}
-                strokeOpacity="0.26"
+                strokeOpacity={active ? '0.58' : '0.06'}
                 fill="none"
                 strokeLinecap="round"
               />
@@ -435,8 +447,14 @@ function ProgramFlowChart({ programs, frequency }) {
         {[...chart.programs, ...chart.days, ...chart.exercises].map(node => {
           const meta = nodeMeta.get(node.id);
           if (!meta) return null;
+          const active = !hoveredNode || connectedNodes.has(node.id);
           return (
-            <g key={node.id}>
+            <g
+              key={node.id}
+              onMouseEnter={() => setHoveredNode(node.id)}
+              onMouseLeave={() => setHoveredNode(null)}
+              style={{ cursor: 'default' }}
+            >
               <rect
                 x={meta.x}
                 y={meta.y}
@@ -445,9 +463,10 @@ function ProgramFlowChart({ programs, frequency }) {
                 rx="7"
                 fill="rgba(13,15,30,0.88)"
                 stroke={meta.color}
-                strokeOpacity="0.75"
+                strokeOpacity={active ? '0.95' : '0.18'}
+                opacity={active ? 1 : 0.32}
               />
-              <text x={meta.x + 10} y={meta.y + 16} fill="var(--ink)" fontSize="11" fontFamily="inherit">
+              <text x={meta.x + 10} y={meta.y + 16} fill={active ? 'var(--ink)' : 'var(--ink-ghost)'} fontSize="11" fontFamily="inherit">
                 {truncate(meta.label, meta.width > 240 ? 34 : 26)}
               </text>
             </g>
