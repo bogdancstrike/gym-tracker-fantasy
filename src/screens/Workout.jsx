@@ -201,12 +201,14 @@ export function Workout() {
         variant="primary" 
         style={{ width: '100%', marginTop: 14 }} 
         onClick={() => { 
-          claimWorkout(workout.isBoss); 
+          claimWorkout(workout.isBoss, { doneSets, totalSets }); 
           setScreen('home'); 
         }}
-        disabled={doneSets < totalSets}
+        disabled={doneSets === 0}
       >
-        {fantasy ? 'Bloom · End Training' : 'Complete · Claim XP'}
+        {doneSets < totalSets
+          ? (fantasy ? 'End Partial Training' : 'End Partial Training')
+          : (fantasy ? 'Bloom · End Training' : 'Complete · Claim XP')}
       </Button>
 
       {ticks.map(t => <FloatingXp key={t.id} {...t} />)}

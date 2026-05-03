@@ -251,8 +251,11 @@ export function GameProvider({ children }) {
     gainXp(amount);
   }, [gainXp]);
 
-  const claimWorkout = useCallback((isBoss = false) => {
-    const amount = isBoss ? 450 : 150;
+  const claimWorkout = useCallback((isBoss = false, session = {}) => {
+    const totalSets = session.totalSets || workout.exercises?.reduce((sum, exercise) => sum + (exercise.sets || []).length, 0) || 0;
+    const doneSets = session.doneSets ?? workout.exercises?.reduce((sum, exercise) => sum + (exercise.sets || []).filter(set => set.done).length, 0) ?? totalSets;
+    const completionRatio = totalSets > 0 ? doneSets / totalSets : 1;
+    const amount = isBoss ? Math.round(450 * completionRatio) : Math.round(150 * completionRatio);
     const today = new Date().toISOString();
     const program = getAvatarProgram(activeAvatar, customPrograms);
     const nextDayIndex = isBoss || !program?.days?.length
@@ -267,6 +270,10 @@ export function GameProvider({ children }) {
       program: activeAvatar.program,
       dayName: workout.dayName,
       dayIndex: workout.dayIndex,
+      completed: doneSets >= totalSets,
+      completionRatio,
+      doneSets,
+      totalSets,
       volume: workout.exercises?.reduce((sum, exercise) =>
         sum + (exercise.sets || []).reduce((setSum, set) => setSum + Number(set.weight || 0) * Number(set.reps || 0), 0), 0),
       exercises: workout.exercises,

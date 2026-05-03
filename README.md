@@ -6,7 +6,6 @@ Ascend turns training into a game loop: create a character, pick a real training
 
 It is built for lifters who want a tracker that feels motivating without losing the practical details that matter: programs, days, exercises, sets, reps, kilograms, bodyweight, workout history, and local persistence.
 
-![Ascend dashboard preview](public/reference/pasted-1777796879257-0.png)
 
 ## Why Ascend?
 
