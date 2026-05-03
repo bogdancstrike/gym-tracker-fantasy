@@ -1,0 +1,149 @@
+@keyframes runeBreathe {
+  from { opacity: 0.15; filter: blur(3px) drop-shadow(0 0 10px var(--cyan)); transform: translate(-50%, -50%) scale(0.95); }
+  to   { opacity: 0.5;  filter: blur(1.5px) drop-shadow(0 0 30px var(--cyan)); transform: translate(-50%, -50%) scale(1.05); }
+}
+
+@keyframes runeShimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+.shimmer-text {
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0) 30%, rgba(255,255,255,0.8) 50%, rgba(255,255,255,0) 70%, transparent 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: runeShimmer 4s linear infinite;
+}
+
+/* Fantasy environmental FX layers */
+.fantasy-fx {
+  position: absolute; inset: 0; pointer-events: none; overflow: hidden;
+  z-index: 1;
+}
+html:not([data-theme="fantasy"]) .fantasy-fx { display: none; }
+
+/* Embers — small glowing dots that rise with sideways drift */
+.ember {
+  position: absolute; bottom: -10px;
+  border-radius: 50%;
+  animation: emberRise linear infinite;
+  opacity: 0;
+}
+@keyframes emberRise {
+  0%   { transform: translate(0, 0) scale(0.6); opacity: 0; }
+  10%  { opacity: 1; }
+  100% { transform: translate(var(--drift, 0px), -900px) scale(1.2); opacity: 0; }
+}
+
+/* Petals — wider, slower, rotating fall */
+.petal {
+  position: absolute; top: -20px;
+  border-radius: 50% 50% 50% 50% / 50% 50% 30% 30%;
+  animation: petalDrift linear infinite;
+  opacity: 0;
+}
+@keyframes petalDrift {
+  0%   { transform: translate(0, 0) rotate(0deg); opacity: 0; }
+  8%   { opacity: 0.85; }
+  50%  { transform: translate(40px, 450px) rotate(360deg); }
+  100% { transform: translate(-30px, 920px) rotate(720deg); opacity: 0; }
+}
+
+/* Floating runes — pulse + slow vertical drift */
+.float-rune {
+  position: absolute;
+  font-family: 'Uncial Antiqua', 'IM Fell English', serif;
+  font-weight: 700;
+  opacity: 0;
+  animation: runeFloat ease-in-out infinite;
+  filter: blur(0.2px);
+  letter-spacing: 0;
+  user-select: none;
+}
+@keyframes runeFloat {
+  0%, 100% { opacity: 0;    transform: translateY(0) scale(0.8); }
+  20%, 80% { opacity: 0.55; }
+  50%      { opacity: 0.9;  transform: translateY(-18px) scale(1); }
+}
+
+/* Fog blobs */
+.fog-blob {
+  position: absolute; left: -40%;
+  width: 180%; height: 200px;
+  background: radial-gradient(ellipse 50% 70% at 50% 50%, rgba(180,210,180,0.18), transparent 70%);
+  animation: fogDrift linear infinite;
+  filter: blur(8px);
+  mix-blend-mode: screen;
+}
+@keyframes fogDrift {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(40%); }
+}
+
+/* Lightning flash */
+.lightning-flash { animation: lightningStrike 1.6s ease-out 1 forwards; }
+@keyframes lightningStrike {
+  0%   { opacity: 0; }
+  4%   { opacity: 1; }
+  10%  { opacity: 0.2; }
+  16%  { opacity: 1; }
+  22%  { opacity: 0.4; }
+  30%  { opacity: 0.9; }
+  100% { opacity: 0; }
+}
+
+/* Vine borders — draw-on entrance */
+.vine-grow path { stroke-dasharray: 600; stroke-dashoffset: 600; animation: vineDraw 2.4s ease-out forwards; }
+.vine-grow.vine-tr path { animation-delay: 0.1s; }
+.vine-grow.vine-bl path { animation-delay: 0.2s; }
+.vine-grow.vine-br path { animation-delay: 0.3s; }
+.vine-grow g { opacity: 0; animation: leafPop 0.4s ease-out forwards; }
+.vine-grow.vine-tl g:nth-child(2) { animation-delay: 0.6s; }
+.vine-grow.vine-tl g:nth-child(3) { animation-delay: 0.9s; }
+.vine-grow.vine-tl g:nth-child(4) { animation-delay: 1.2s; }
+.vine-grow.vine-tl g:nth-child(5) { animation-delay: 1.5s; }
+@keyframes vineDraw { to { stroke-dashoffset: 0; } }
+@keyframes leafPop  { from { opacity: 0; transform: scale(0); } to { opacity: 0.85; transform: scale(1); } }
+
+/* Spell circle rotation */
+.circle-spin-cw  { animation: cwSpin 40s linear infinite;         transform-origin: 200px 200px; }
+.circle-spin-ccw { animation: cwSpin 30s linear infinite reverse; transform-origin: 200px 200px; }
+@keyframes cwSpin { to { transform: rotate(360deg); } }
+
+/* Boss cinematic scene effects */
+@keyframes bossEmber {
+  0%   { transform: translate(0, 0) scale(0.6); opacity: 0; }
+  10%  { opacity: 0.95; }
+  100% { transform: translate(20px, -260px) scale(1.2); opacity: 0; }
+}
+.echo-ring { animation: echoRing 4.5s linear infinite; transform-origin: center; }
+@keyframes echoRing {
+  0%   { r: 20px;  opacity: 0;    stroke-width: 1.4; }
+  10%  { opacity: 0.85; }
+  100% { r: 180px; opacity: 0;    stroke-width: 0.2; }
+}
+.forge-flicker { animation: forgeFlicker 0.18s ease-in-out infinite alternate; }
+@keyframes forgeFlicker {
+  from { opacity: 0.55; transform: translateX(-50%) scale(1); }
+  to   { opacity: 0.85; transform: translateX(-50%) scale(1.06); }
+}
+.throne-lightning { animation: throneStrike 9s ease-out infinite; }
+@keyframes throneStrike {
+  0%, 92% { opacity: 0; }
+  93%     { opacity: 0.9; }
+  94%     { opacity: 0.2; }
+  95%     { opacity: 0.95; }
+  96%     { opacity: 0.4; }
+  98%     { opacity: 0.7; }
+  100%    { opacity: 0; }
+}
+@keyframes bossMoteFloat {
+  0%, 100% { transform: translateY(0);   opacity: 0.55; }
+  50%      { transform: translateY(-30px); opacity: 0.95; }
+}
+
+.parallax-mid   { animation: parallaxMid   12s ease-in-out infinite; transform-origin: center bottom; }
+@keyframes parallaxMid   { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+.parallax-front { animation: parallaxFront  8s ease-in-out infinite; transform-origin: center bottom; }
+@keyframes parallaxFront { 0%, 100% { transform: translateY(0) scale(1); } 50% { transform: translateY(2px) scale(1.01); } }
