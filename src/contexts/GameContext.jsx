@@ -1,20 +1,30 @@
 import { createContext, useCallback, useContext, useMemo, useState, useEffect } from 'react';
 import { INITIAL_AVATARS, RACES } from '../data/races.js';
-import { INITIAL_QUESTS } from '../data/quests.js';
+import { QUEST_POOL } from '../data/quests.js';
 import { LIVE_WORKOUT } from '../data/workout.js';
 import { RANKS, DIFFICULTY_MULTIPLIER, getRankForLevel } from '../data/ranks.js';
 import { INVENTORY, LOOT_POOL } from '../data/inventory.js';
 
 const GameContext = createContext(null);
 
+const STORAGE_KEY = 'ascend_hunters_forge_v1';
+
+function getRandomQuests(count = 5) {
+  const shuffled = [...QUEST_POOL].sort(() => 0.5 - Math.random());
+  return shuffled.slice(0, count).map(q => ({ ...q, done: false }));
+}
+
 export function GameProvider({ children }) {
+  // Load initial state from Local Storage
+  const [isLoaded, setIsLoaded] = useState(false);
   const [avatars, setAvatars] = useState(INITIAL_AVATARS);
   const [activeId, setActiveId] = useState(INITIAL_AVATARS[0].id);
-  const [quests, setQuests] = useState(INITIAL_QUESTS);
+  const [quests, setQuests] = useState([]);
   const [workout, setWorkout] = useState(LIVE_WORKOUT);
   const [difficulty, setDifficulty] = useState('normal');
   const [screen, setScreen] = useState('home');
   const [inventory, setInventory] = useState(INVENTORY);
+  const [lastQuestRefresh, setLastQuestRefresh] = useState(null);
 
   // Modals & overlays
   const [bossIntro, setBossIntro] = useState(null);
@@ -26,10 +36,49 @@ export function GameProvider({ children }) {
   const [switchCine, setSwitchCine] = useState(null);
   const [lootDrop, setLootDrop] = useState(null);
 
+  // Persistence: Load
+  useEffect(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      try {
+        const data = JSON.parse(saved);
+        setAvatars(data.avatars || INITIAL_AVATARS);
+        setActiveId(data.activeId || INITIAL_AVATARS[0].id);
+        setQuests(data.quests || []);
+        setWorkout(data.workout || LIVE_WORKOUT);
+        setDifficulty(data.difficulty || 'normal');
+        setInventory(data.inventory || INVENTORY);
+        setLastQuestRefresh(data.lastQuestRefresh);
+      } catch (e) {
+        console.error("Failed to load game state", e);
+      }
+    }
+    setIsLoaded(true);
+  }, []);
+
+  // Persistence: Save
+  useEffect(() => {
+    if (!isLoaded) return;
+    const data = {
+      avatars, activeId, quests, workout, difficulty, inventory, lastQuestRefresh
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  }, [avatars, activeId, quests, workout, difficulty, inventory, lastQuestRefresh, isLoaded]);
+
+  // Daily Refresh Logic
+  useEffect(() => {
+    const today = new Date().toDateString();
+    if (lastQuestRefresh !== today) {
+      setQuests(getRandomQuests(5));
+      setLastQuestRefresh(today);
+      // Reset daily XP tracking on the avatar
+      setAvatars(as => as.map(a => ({ ...a, totalXpToday: 0 })));
+    }
+  }, [lastQuestRefresh]);
+
   const activeAvatar = avatars.find(a => a.id === activeId) || avatars[0];
   const race = RACES.find(r => r.id === activeAvatar.race);
 
-  // --- Functions defined before use ---
   const updateActive = useCallback((patch) => {
     setAvatars(as => as.map(a => a.id === activeId ? { ...a, ...patch } : a));
   }, [activeId]);
@@ -43,11 +92,9 @@ export function GameProvider({ children }) {
     });
   }, [activeAvatar.metrics, updateActive]);
 
-  // Calculate effective stats (Base + Equipment)
   const effectiveStats = useMemo(() => {
     const stats = { ...activeAvatar.stats };
     const equippedItems = inventory.filter(it => (activeAvatar.equippedIds || []).includes(it.id));
-    
     equippedItems.forEach(item => {
       if (item.stats) {
         Object.entries(item.stats).forEach(([stat, val]) => {
@@ -55,7 +102,6 @@ export function GameProvider({ children }) {
         });
       }
     });
-    
     return stats;
   }, [activeAvatar.stats, activeAvatar.equippedIds, inventory]);
 
@@ -74,7 +120,6 @@ export function GameProvider({ children }) {
   const dropLoot = useCallback((sourceType = 'workout', isBoss = false) => {
     const roll = Math.random() * 100;
     let tier = 'common';
-    
     if (isBoss) {
       if (roll < 15) tier = 'legendary';
       else if (roll < 45) tier = 'epic';
@@ -84,17 +129,14 @@ export function GameProvider({ children }) {
       else if (roll < 30) tier = 'rare';
       else tier = 'common';
     }
-
     const pool = LOOT_POOL.filter(it => it.tier === tier);
     if (pool.length === 0) return null;
-    
     const template = pool[Math.floor(Math.random() * pool.length)];
     const newItem = {
       ...template,
       id: `loot-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       equipped: false,
     };
-    
     setInventory(prev => [...prev, newItem]);
     return newItem;
   }, []);
@@ -114,59 +156,55 @@ export function GameProvider({ children }) {
           }, 1000);
         }
       }
-      return qs.map(q => q.id === id ? {
-        ...q,
-        done: !q.done,
-        progress: !q.done ? q.target : q.progress,
-      } : q);
+      return qs.map(q => q.id === id ? { ...q, done: !q.done } : q);
     });
   }, [difficulty, dropLoot]);
 
   const gainXp = useCallback((amount) => {
     const newPct = activeAvatar.xp + (amount / (activeAvatar.xpMax / 100));
-    
     if (newPct >= 100) {
       const nextLevel = activeAvatar.level + 1;
       const nextRank = getRankForLevel(nextLevel);
-      
       updateActive({ 
-        xp: 5, 
-        level: nextLevel, 
-        rank: nextRank,
+        xp: 5, level: nextLevel, rank: nextRank,
         totalXpToday: activeAvatar.totalXpToday + amount 
       });
-
       setTimeout(() => {
-        setLevelUp({
-          fromLevel: activeAvatar.level, toLevel: nextLevel,
-          fromRank: activeAvatar.rank, toRank: nextRank,
-        });
-        
+        setLevelUp({ fromLevel: activeAvatar.level, toLevel: nextLevel, fromRank: activeAvatar.rank, toRank: nextRank });
         const item = dropLoot('levelup');
         if (item) setLootDrop(item);
       }, 400);
     } else {
-      updateActive({ 
-        xp: newPct, 
-        totalXpToday: activeAvatar.totalXpToday + amount 
-      });
+      updateActive({ xp: newPct, totalXpToday: activeAvatar.totalXpToday + amount });
     }
   }, [activeAvatar, updateActive, dropLoot]);
 
   const claimWorkout = useCallback((isBoss = false) => {
     const amount = isBoss ? 450 : 150;
+    const today = new Date().toISOString();
     
+    const workoutEntry = { id: Date.now(), type: isBoss ? 'boss' : 'workout', date: today, name: workout.name };
+    const history = [...(activeAvatar.history || []), workoutEntry];
+
     if (isBoss) {
       setBossVictory({ xp: amount, time: Math.floor(Math.random() * 20) + 15 });
+      updateActive({ 
+        bossWins: (activeAvatar.bossWins || 0) + 1,
+        totalXpToday: activeAvatar.totalXpToday + amount,
+        history
+      });
+    } else {
+      updateActive({ 
+        totalXpToday: activeAvatar.totalXpToday + amount,
+        history
+      });
     }
-
     gainXp(amount);
-    
     if (isBoss || Math.random() < 0.4) {
       const item = dropLoot('workout', isBoss);
       if (item) setLootDrop(item);
     }
-  }, [gainXp, dropLoot]);
+  }, [gainXp, dropLoot, workout.name, activeAvatar.history, activeAvatar.bossWins, updateActive]);
 
   const switchAvatar = useCallback((id) => {
     if (id === activeId) { setSwitcherOpen(false); return; }
@@ -174,14 +212,11 @@ export function GameProvider({ children }) {
     const to = avatars.find(a => a.id === id);
     setSwitcherOpen(false);
     setSwitchCine({ from, to });
-    setTimeout(() => {
-      setActiveId(id);
-      setScreen('home');
-    }, 1200);
+    setTimeout(() => { setActiveId(id); setScreen('home'); }, 1200);
   }, [activeAvatar, activeId, avatars]);
 
   const createAvatar = useCallback((newAv) => {
-    const avWithEquip = { ...newAv, equippedIds: [], rank: getRankForLevel(newAv.level) };
+    const avWithEquip = { ...newAv, equippedIds: [], rank: getRankForLevel(newAv.level), history: [] };
     setAvatars(as => [...as, avWithEquip]);
     setActiveId(newAv.id);
     setCreateOpen(false);
@@ -210,6 +245,8 @@ export function GameProvider({ children }) {
     bossIntro, bossVictory, questReward, levelUp, switcherOpen, createOpen, switchCine, lootDrop,
     completeQuest, gainXp, claimWorkout, switchAvatar, createAvatar, addMetric, updateActive,
   ]);
+
+  if (!isLoaded) return null; // Prevent hydration mismatch or flash of empty state
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
 }
