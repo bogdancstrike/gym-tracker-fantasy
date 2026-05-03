@@ -20,6 +20,8 @@ import { AvatarSwitcher } from './avatar/AvatarSwitcher.jsx';
 import { AvatarCreate } from './avatar/AvatarCreate.jsx';
 import { useBreakpoint } from './hooks/useBreakpoint.js';
 
+import { BossVictory } from './cinematics/BossVictory.jsx';
+
 const SCREEN_MAP = {
   home: Dashboard,
   quests: Quests,
@@ -31,12 +33,14 @@ const SCREEN_MAP = {
 function Overlays({ onWorkout }) {
   const {
     bossIntro, setBossIntro,
+    bossVictory, setBossVictory,
     questReward, setQuestReward,
     levelUp, setLevelUp,
     switcherOpen, setSwitcherOpen,
     createOpen, setCreateOpen,
     switchCine, setSwitchCine,
     createAvatar, setScreen,
+    setWorkout,
   } = useGame();
 
   return (
@@ -45,7 +49,27 @@ function Overlays({ onWorkout }) {
         <BossIntro
           dungeon={bossIntro}
           onClose={() => setBossIntro(null)}
-          onAccept={() => { setBossIntro(null); setScreen('workout'); }}
+          onAccept={() => { 
+            setBossIntro(null); 
+            setWorkout({ 
+              id: bossIntro.id, 
+              name: bossIntro.boss, 
+              isBoss: true,
+              exercises: bossIntro.challenge.map(c => ({ 
+                id: `ex-${Math.random()}`, 
+                name: c.ex, 
+                sets: Array(c.sets).fill({ target: c.reps, done: false }) 
+              })) 
+            });
+            setScreen('workout'); 
+          }}
+        />
+      )}
+      {bossVictory && (
+        <BossVictory
+          xp={bossVictory.xp}
+          time={bossVictory.time}
+          onDismiss={() => setBossVictory(null)}
         />
       )}
       {questReward && (

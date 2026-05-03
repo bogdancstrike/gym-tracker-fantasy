@@ -539,6 +539,11 @@ function NameStep({ name, setName, race, fantasy }) {
         onFocus={e => { e.target.style.borderColor = 'var(--cyan)'; }}
         onBlur={e => { e.target.style.borderColor = 'var(--line)'; }}
       />
+      {name.trim().length > 0 && name.trim().length < 2 && (
+        <div style={{ fontSize: 10, color: 'oklch(0.7 0.2 25)', marginTop: 6 }}>
+          {fantasy ? 'The realms need at least two letters.' : 'Name must be at least 2 characters.'}
+        </div>
+      )}
     </div>
   );
 }
@@ -622,6 +627,14 @@ function ConfirmStep({ name, race, program, freq, fantasy }) {
         <Row label={fantasy ? 'Nature' : 'Class'} value={race.name} />
         <Row label={fantasy ? 'Path' : 'Program'} value={program?.name} />
         <Row label={fantasy ? 'Cycle' : 'Frequency'} value={`${freq}× per week`} last />
+      </div>
+      <div style={{
+        marginTop: 12, fontSize: 12, color: 'var(--ink-dim)',
+        lineHeight: 1.7, fontStyle: 'italic',
+      }}>
+        {fantasy
+          ? 'The world will remember every step. Begin when you are ready.'
+          : 'Hunter profile initialized. Awaiting gate breach.'}
       </div>
     </div>
   );

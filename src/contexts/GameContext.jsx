@@ -18,6 +18,7 @@ export function GameProvider({ children }) {
 
   // Modals & overlays
   const [bossIntro, setBossIntro] = useState(null);
+  const [bossVictory, setBossVictory] = useState(null);
   const [questReward, setQuestReward] = useState(null);
   const [levelUp, setLevelUp] = useState(null);
   const [switcherOpen, setSwitcherOpen] = useState(false);
@@ -27,6 +28,20 @@ export function GameProvider({ children }) {
 
   const activeAvatar = avatars.find(a => a.id === activeId) || avatars[0];
   const race = RACES.find(r => r.id === activeAvatar.race);
+
+  // --- Functions defined before use ---
+  const updateActive = useCallback((patch) => {
+    setAvatars(as => as.map(a => a.id === activeId ? { ...a, ...patch } : a));
+  }, [activeId]);
+
+  const addMetric = useCallback((type, value) => {
+    updateActive({
+      metrics: [
+        ...(activeAvatar.metrics || []),
+        { id: Date.now(), type, value, date: new Date().toISOString() }
+      ]
+    });
+  }, [activeAvatar.metrics, updateActive]);
 
   // Calculate effective stats (Base + Equipment)
   const effectiveStats = useMemo(() => {
@@ -44,10 +59,6 @@ export function GameProvider({ children }) {
     return stats;
   }, [activeAvatar.stats, activeAvatar.equippedIds, inventory]);
 
-  const updateActive = useCallback((patch) => {
-    setAvatars(as => as.map(a => a.id === activeId ? { ...a, ...patch } : a));
-  }, [activeId]);
-
   const toggleEquip = useCallback((itemId) => {
     setAvatars(as => as.map(a => {
       if (a.id !== activeId) return a;
@@ -64,8 +75,6 @@ export function GameProvider({ children }) {
     const roll = Math.random() * 100;
     let tier = 'common';
     
-    // Adjust rates based on boss or level? 
-    // User requested: common 70%, rare 25%, unique 5%
     if (isBoss) {
       if (roll < 15) tier = 'legendary';
       else if (roll < 45) tier = 'epic';
@@ -98,7 +107,6 @@ export function GameProvider({ children }) {
         const rewardXp = Math.round(q.xp * mult);
         setQuestReward({ ...q, xp: rewardXp });
         
-        // Small chance of loot from regular quests
         if (Math.random() < 0.15) {
           setTimeout(() => {
             const item = dropLoot('quest');
@@ -115,7 +123,6 @@ export function GameProvider({ children }) {
   }, [difficulty, dropLoot]);
 
   const gainXp = useCallback((amount) => {
-    const currentXp = activeAvatar.xp;
     const newPct = activeAvatar.xp + (amount / (activeAvatar.xpMax / 100));
     
     if (newPct >= 100) {
@@ -135,7 +142,6 @@ export function GameProvider({ children }) {
           fromRank: activeAvatar.rank, toRank: nextRank,
         });
         
-        // Loot on level up!
         const item = dropLoot('levelup');
         if (item) setLootDrop(item);
       }, 400);
@@ -149,9 +155,13 @@ export function GameProvider({ children }) {
 
   const claimWorkout = useCallback((isBoss = false) => {
     const amount = isBoss ? 450 : 150;
+    
+    if (isBoss) {
+      setBossVictory({ xp: amount, time: Math.floor(Math.random() * 20) + 15 });
+    }
+
     gainXp(amount);
     
-    // Guaranteed loot from boss, chance from workout
     if (isBoss || Math.random() < 0.4) {
       const item = dropLoot('workout', isBoss);
       if (item) setLootDrop(item);
@@ -185,19 +195,20 @@ export function GameProvider({ children }) {
     screen, setScreen,
     inventory, toggleEquip,
     bossIntro, setBossIntro,
+    bossVictory, setBossVictory,
     questReward, setQuestReward,
     levelUp, setLevelUp,
     switcherOpen, setSwitcherOpen,
     createOpen, setCreateOpen,
     switchCine, setSwitchCine,
     lootDrop, setLootDrop,
-    completeQuest, gainXp, claimWorkout, switchAvatar, createAvatar,
+    completeQuest, gainXp, claimWorkout, switchAvatar, createAvatar, addMetric, updateActive,
   }), [
     avatars, activeAvatar, race, activeId, effectiveStats,
     quests, workout, difficulty, screen,
     inventory, toggleEquip,
-    bossIntro, questReward, levelUp, switcherOpen, createOpen, switchCine, lootDrop,
-    completeQuest, gainXp, claimWorkout, switchAvatar, createAvatar,
+    bossIntro, bossVictory, questReward, levelUp, switcherOpen, createOpen, switchCine, lootDrop,
+    completeQuest, gainXp, claimWorkout, switchAvatar, createAvatar, addMetric, updateActive,
   ]);
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;

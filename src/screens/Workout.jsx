@@ -94,7 +94,10 @@ export function Workout() {
       <Button 
         variant="primary" 
         style={{ width: '100%', marginTop: 14 }} 
-        onClick={() => { claimWorkout(); setScreen('home'); }}
+        onClick={() => { 
+          claimWorkout(workout.isBoss); 
+          setScreen('home'); 
+        }}
         disabled={doneSets < totalSets}
       >
         {fantasy ? 'Bloom · End Training' : 'Complete · Claim XP'}

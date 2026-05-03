@@ -93,5 +93,12 @@ export const INITIAL_AVATARS = [
     program: { freq: 4, id: 'bro-split-4' },
     active: true,
     equippedIds: ['i1', 'i2', 'i4', 'i8'],
+    metrics: [
+      { id: 1, type: 'weight', value: 85, date: '2026-04-20T10:00:00Z' },
+      { id: 2, type: 'weight', value: 84.5, date: '2026-04-25T10:00:00Z' },
+      { id: 3, type: 'weight', value: 83.8, date: '2026-05-01T10:00:00Z' },
+      { id: 4, type: 'kcal', value: 2400, date: '2026-05-01T10:00:00Z' },
+      { id: 5, type: 'kcal', value: 2350, date: '2026-05-02T10:00:00Z' }
+    ]
   },
 ];
