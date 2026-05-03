@@ -7,7 +7,7 @@ import { RaceGlyph } from '../characters/RaceGlyph.jsx';
 import { RankEmblem } from '../ui/RankEmblem.jsx';
 import { ClassViewer3D } from '../characters/ClassViewer3D.jsx';
 import { RACES } from '../data/races.js';
-import { PROGRAMS } from '../data/programs.js';
+import { useGame } from '../contexts/GameContext.jsx';
 import { useBreakpoint } from '../hooks/useBreakpoint.js';
 import { getRankForLevel } from '../data/ranks.js';
 
@@ -20,13 +20,14 @@ const STEP_LABELS = {
 
 export function AvatarCreate({ onClose, onCreated }) {
   const { fantasy } = useTheme();
+  const { availablePrograms } = useGame();
   const labels = fantasy ? STEP_LABELS.fantasy : STEP_LABELS.cyber;
 
   const [step, setStep] = useState(0);
   const [selectedRace, setSelectedRace] = useState(null);
   const [name, setName] = useState('');
   const [freq, setFreq] = useState(4);
-  const [programId, setProgramId] = useState(PROGRAMS[4][0].id);
+  const [programId, setProgramId] = useState(() => availablePrograms[4]?.[0]?.id || '');
   const [profile, setProfile] = useState({
     sex: 'female',
     bodyweightKg: 65,
@@ -40,7 +41,7 @@ export function AvatarCreate({ onClose, onCreated }) {
     },
   });
 
-  const programs = PROGRAMS[freq] || [];
+  const programs = availablePrograms[freq] || [];
   const selectedProgram = programs.find(p => p.id === programId) || programs[0];
 
   const canAdvance = () => {
@@ -172,7 +173,7 @@ export function AvatarCreate({ onClose, onCreated }) {
                 )}
                 {STEPS[step] === 'program' && (
                   <ProgramStep
-                    freq={freq} setFreq={f => { setFreq(f); setProgramId(PROGRAMS[f][0].id); }}
+                    freq={freq} setFreq={f => { setFreq(f); setProgramId(availablePrograms[f]?.[0]?.id || ''); }}
                     programId={programId} setProgramId={setProgramId}
                     programs={programs} fantasy={fantasy}
                   />
@@ -697,6 +698,20 @@ function ProgramStep({ freq, setFreq, programId, setProgramId, programs, fantasy
             >
               <div className="mythic" style={{ fontSize: 16, color: 'var(--ink)' }}>{p.name}</div>
               <div style={{ fontSize: 12, color: 'var(--ink-dim)', marginTop: 4 }}>{p.blurb}</div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
+                {(p.days || []).map(day => (
+                  <span key={day.name || day} style={{
+                    fontSize: 10,
+                    color: 'var(--ink-dim)',
+                    padding: '4px 7px',
+                    border: '1px solid var(--line)',
+                    borderRadius: 7,
+                    background: 'rgba(0,0,0,0.16)',
+                  }}>
+                    {day.name || day}
+                  </span>
+                ))}
+              </div>
             </button>
           );
         })}

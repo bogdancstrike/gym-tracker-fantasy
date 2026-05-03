@@ -1,56 +1,150 @@
-# Ascend: Hunter's Forge ⚔️
+# Ascend
 
-An RPG-style fitness application inspired by "Solo Leveling" and high-fantasy aesthetics. Turn your gym sessions into quest completions, level up your character, and collect rare loot.
+**A local-first gym tracker wrapped in RPG progression.**
 
-![Dashboard Preview](https://via.placeholder.com/1200x600.png?text=Ascend+Hunters+Forge+Dashboard+Preview)
+Ascend turns training into a game loop: create a character, pick a real training program, log sets in the gym, earn XP, complete daily quests, unlock loot, and watch your progress build into a long-running fitness profile.
 
-## ✨ Features
+It is built for lifters who want a tracker that feels motivating without losing the practical details that matter: programs, days, exercises, sets, reps, kilograms, bodyweight, workout history, and local persistence.
 
-- **Dual Aesthetic Themes:** Switch between **Solo Leveling (Cyber-Arcane)** and **High Fantasy (Verdant Grove)** modes instantly.
-- **RPG Progression:** Level-based ranking system (E-Rank to S-Rank) with dynamic attribute growth.
-- **Classes & Races:** Choose your path as a Shadow Monarch, Iron Berserker, Arcane Mage, and more—each with unique stat biases and passive bonuses.
-- **Loot & Equipment System:** Gain items from workouts and dungeons. Equip gear to modify your real-world strength, agility, and vitality stats.
-- **Dynamic Dungeons:** Face "Glades" or "Gates" (Boss Fights) with specific exercise challenges and guaranteed rare drops.
-- **Advanced Metrics:** Track bodyweight, caloric intake, and workout intensity with high-fidelity charts powered by Recharts.
-- **Daily Quests:** 300+ randomized daily missions to keep your training varied and engaging.
-- **Local Persistence:** Full state management saved to Local Storage for a seamless offline-first experience.
+![Ascend dashboard preview](public/reference/pasted-1777796879257-0.png)
 
-## 🚀 Tech Stack
+## Why Ascend?
 
-- **Frontend:** React 18 (Vite)
-- **Styling:** Vanilla CSS with custom Glassmorphism (`.glass-fantasy`)
-- **Charts:** Recharts
-- **Icons:** Lucide-React
-- **3D/FX:** Custom CSS animations & Video backgrounds
+Most gym trackers are useful but dry. Most gamified fitness apps are fun but too shallow for real lifting.
 
-## 🛠️ Getting Started
+Ascend aims for the middle ground:
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/yourusername/ascend-hunters-forge.git
-   ```
+- **Real gym tracking:** log kilograms and reps per set.
+- **Program-based training:** choose a 3, 4, or 5 day split such as Full Body, PPL, Upper/Lower, Bro Split, Arnold Split, Athletic Protocol, or Powerbuilding.
+- **Character-based progression:** each character has its own profile, training program, workout state, metrics, history, XP, rank, inventory, and equipment.
+- **Motivation layer:** daily quests, boss workouts, loot drops, ranks, attributes, and cinematic feedback.
+- **Local-first storage:** the app saves state in browser localStorage, making it fast, private, and easy to run without a backend.
 
-2. **Install dependencies:**
-   ```bash
-   npm install
-   ```
+## Core Features
 
-3. **Launch the system:**
-   ```bash
-   npm run dev
-   ```
+| Area | What it does |
+| --- | --- |
+| **Train** | Edit kilograms and reps per set, complete workouts, claim XP, and store workout history. |
+| **Programs** | Pick full training plans by frequency: 3, 4, or 5 days per week. |
+| **Characters** | Create multiple lifter profiles with bodyweight, training goal, experience, frequency, program, and starting lift baselines. |
+| **Progression** | Earn XP from sets, workouts, quests, and boss challenges. Rank up from E to S. |
+| **Quests** | Get randomized daily fitness quests across strength, endurance, mobility, recovery, and health. |
+| **Dungeons / Bosses** | Start themed challenge workouts with exercise prescriptions and stronger rewards. |
+| **Inventory** | Earn droppable items and equip gear that modifies character attributes. |
+| **Metrics** | Track bodyweight, calories, workout frequency, and training history with charts. |
+| **Admin** | Inspect app data: quests, paths, programs, loot, formulas, and saved localStorage state. |
+| **Themes** | Switch between Solo-Leveling-inspired cyber arcane styling and high-fantasy verdant styling. |
 
-## 📜 Lore
+## Product Direction
 
-*"The world changed. Gates opened, and only those who trained could survive. But the iron is a harsh master. It demands blood, sweat, and consistency. The System saw your effort. It granted you the Forge. Now, you don't just lift—you Ascend."*
+Ascend is evolving into a full gym tracker with a game layer, not just a themed habit app.
 
-## 🗺️ Roadmap
+The intended workflow:
 
-- [ ] PWA Support for mobile home-screen installation.
-- [ ] Backend integration for global leaderboards and guild systems.
-- [ ] Multi-user synchronization and workout sharing.
-- [ ] Expanded boss mechanics with phased exercise sets.
+1. Create a character.
+2. Enter realistic body and strength baselines.
+3. Choose a training split.
+4. Train from the generated workout plan.
+5. Log actual kg and reps.
+6. Review history and progress.
+7. Use XP, records, quests, loot, and bosses as motivation to stay consistent.
 
----
+## Screens
 
-Built for the Hunters who never skip a day. ⟡
+| Screen | Purpose |
+| --- | --- |
+| **Dashboard** | Character overview, rank, XP, attributes, metrics, and training charts. |
+| **Train** | The actual workout logger. This is the core gym-tracker surface. |
+| **Quests** | Daily side objectives for health, mobility, endurance, and strength. |
+| **Dungeons** | Boss-style workouts and challenge sessions. |
+| **Inventory** | Loot, equipment, and RPG stat modifiers. |
+| **Admin** | Data browser for all configurable/static app systems and saved local state. |
+
+## Local-First State
+
+Ascend currently stores app state in browser localStorage.
+
+Saved state includes:
+
+- characters
+- active character
+- character profile details
+- selected training program
+- active workout
+- workout history
+- metrics
+- inventory and equipped items
+- quests
+- difficulty
+- last daily quest refresh
+- selected theme
+
+This makes the app easy to run locally and private by default. It also means clearing browser storage deletes progress unless export/import support is added.
+
+## Tech Stack
+
+- **React 18**
+- **Vite**
+- **Recharts**
+- **Three.js**
+- **Lucide React**
+- **Vanilla CSS with custom theme variables and visual effects**
+- **localStorage persistence**
+
+## Getting Started
+
+```bash
+git clone https://github.com/yourusername/ascend.git
+cd ascend
+npm install
+npm run dev
+```
+
+Then open the local Vite URL shown in your terminal.
+
+## Build
+
+```bash
+npm run build
+```
+
+Preview the production build:
+
+```bash
+npm run preview
+```
+
+## Project Structure
+
+```text
+src/
+  avatar/       Character creation and switching
+  characters/   Character visuals and class presentation
+  contexts/     Game and theme state
+  data/         Programs, quests, dungeons, ranks, loot, workouts
+  screens/      Dashboard, Train, Quests, Dungeons, Inventory, Admin
+  shell/        App navigation and layout
+  ui/           Shared UI components
+  fx/           Backgrounds and visual effects
+```
+
+## Roadmap
+
+- [ ] Custom training program builder in Admin
+- [ ] Program day rotation after workout completion
+- [ ] Previous-session comparison inside Train
+- [ ] Personal records for intensity and volume
+- [ ] XP bonus and animation when setting records
+- [ ] Exercise library with muscles, equipment, and substitutions
+- [ ] Rest timer
+- [ ] Import/export localStorage backup
+- [ ] PWA install support
+- [ ] Optional cloud sync
+
+## Status
+
+Ascend is under active development. The current app is playable and stateful locally, with the main foundation for a gym tracker already in place: character profiles, selectable training programs, editable set logging, quests, rewards, metrics, and local persistence.
+
+## License
+
+Add a license before publishing as a public repository.

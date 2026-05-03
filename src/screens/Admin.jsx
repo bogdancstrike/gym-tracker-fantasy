@@ -51,7 +51,8 @@ export function Admin() {
     }
   }, [state.avatars, state.activeId, state.quests, state.inventory, state.difficulty]);
 
-  const programRows = Object.entries(PROGRAMS).flatMap(([frequency, programs]) =>
+  const sourcePrograms = state.availablePrograms || PROGRAMS;
+  const programRows = Object.entries(sourcePrograms).flatMap(([frequency, programs]) =>
     programs.map(program => ({ ...program, frequency }))
   );
 
@@ -105,7 +106,19 @@ export function Admin() {
             <Panel key={program.id} style={{ padding: 14 }}>
               <div className="mythic" style={{ color: 'var(--ink)', fontSize: 16 }}>{program.name}</div>
               <div style={{ color: 'var(--ink-dim)', fontSize: 12, marginTop: 4 }}>{program.frequency} days/week · {program.blurb}</div>
-              <div style={chipGrid}>{program.days.map(day => <Chip key={day}>{day}</Chip>)}</div>
+              <div style={chipGrid}>
+                {(program.tags || []).map(tag => <Chip key={`${program.id}-tag-${tag}`}>{tag}</Chip>)}
+                {program.custom && <Chip>custom</Chip>}
+              </div>
+              <div style={{ display: 'grid', gap: 10, marginTop: 12 }}>
+                {(program.days || []).map((trainingDay, dayIndex) => (
+                  <ProgramDay
+                    key={`${program.id}-day-${trainingDay.name || dayIndex}`}
+                    day={trainingDay}
+                    dayIndex={dayIndex}
+                  />
+                ))}
+              </div>
             </Panel>
           ))}
         </div>
@@ -185,6 +198,45 @@ function MiniTable({ rows }) {
   return (
     <div style={{ display: 'grid', gap: 6 }}>
       {rows.map(([label, value]) => <Row key={label} label={label} value={value} />)}
+    </div>
+  );
+}
+
+function ProgramDay({ day, dayIndex }) {
+  const dayName = typeof day === 'string' ? day : day.name;
+  const focus = typeof day === 'string' ? '' : day.focus;
+  const exercises = Array.isArray(day?.exercises) ? day.exercises : [];
+
+  return (
+    <div style={{
+      border: '1px solid var(--line)',
+      borderRadius: 10,
+      background: 'rgba(13,15,30,0.38)',
+      padding: 12,
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'baseline', marginBottom: 8 }}>
+        <div className="mythic" style={{ color: 'var(--ink)', fontSize: 14 }}>
+          Day {dayIndex + 1} · {dayName}
+        </div>
+        {focus && (
+          <div className="hud" style={{ color: 'var(--ink-dim)', fontSize: 9, textAlign: 'right' }}>
+            {focus}
+          </div>
+        )}
+      </div>
+      {exercises.length > 0 ? (
+        <div style={{ display: 'grid', gap: 6 }}>
+          {exercises.map((exercise, exerciseIndex) => (
+            <Row
+              key={`${dayName}-${exercise.name || exerciseIndex}`}
+              label={exercise.name}
+              value={`${exercise.sets} sets × ${exercise.reps}${exercise.note ? ` · ${exercise.note}` : ''}${exercise.lift ? ` · scales from ${exercise.lift}` : ''}`}
+            />
+          ))}
+        </div>
+      ) : (
+        <div style={{ color: 'var(--ink-dim)', fontSize: 12 }}>No exercises configured.</div>
+      )}
     </div>
   );
 }
